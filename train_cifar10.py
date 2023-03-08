@@ -3,7 +3,8 @@ import argparse
 import platform
 import torch
 import torch.nn as nn
-from cifar10.models import vgg16, resnet56, resnet110, densenet40
+from cifar10.models import vgg16, densenet40
+from cifar10.models import resnet20, resnet32, resnet44, resnet56, resnet110
 from cifar10.data import load_cifar10
 from utils.calculate import AverageMeter, accuracy
 from datetime import datetime

@@ -1,5 +1,5 @@
 # !/bin/bash
-archs=("vgg16" "resnet56" "resnet110" "densenet40")
+archs=("vgg16" "resnet20" "resnet32" "resnet44" "resnet56" "resnet110" "densenet40")
 
 for arch in ${archs[@]}
 do
@@ -7,7 +7,7 @@ do
 		"vgg16")
 			thresholds=(0.7 0.75 0.8)
 			;;
-		"resnet56"|"resnet110")
+		"resnet"*)
 			thresholds=(0.65 0.7 0.75)
 			;;
 		"densenet40")

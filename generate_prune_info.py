@@ -3,7 +3,8 @@ import argparse
 import platform
 import torch
 import torch.nn as nn
-from cifar10.models import vgg16, resnet56, resnet110, densenet40
+from cifar10.models import vgg16, densenet40
+from cifar10.models import resnet20, resnet32, resnet44, resnet56, resnet110
 from imagenet.models import resnet50
 from cifar10.data import load_cifar10
 from imagenet.data import load_imagenet
@@ -97,7 +98,7 @@ def main():
     
     # exclude the last convolutional layer of each residual structure for resnet
     sub_conv_layers, sub_conv_weights, sub_feature_blobs = [], [], []
-    if args.arch in ["resnet56", "resnet110"]:
+    if args.arch in [f"resnet{depth}" for depth in [20,32,44,56,110]]:
         for name, module in model.named_modules():
             if isinstance(module, nn.Conv2d) and "conv2" not in name:
                 sub_conv_layers.append(name)

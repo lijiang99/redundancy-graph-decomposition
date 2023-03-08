@@ -192,6 +192,15 @@ def vgg16(mask_nums=None):
     cfg = [64, 64, "M", 128, 128, "M", 256, 256, 256, "M", 512, 512, 512, "M", 512, 512, 512]
     return VGGNet(cfg=cfg, mask_nums=mask_nums)
 
+def resnet20(mask_nums=None):
+    return ResNet(ResidualBlock, [3, 3, 3], mask_nums=mask_nums)
+
+def resnet32(mask_nums=None):
+    return ResNet(ResidualBlock, [5, 5, 5], mask_nums=mask_nums)
+
+def resnet44(mask_nums=None):
+    return ResNet(ResidualBlock, [7, 7, 7], mask_nums=mask_nums)
+
 def resnet56(mask_nums=None):
     return ResNet(ResidualBlock, [9, 9, 9], mask_nums=mask_nums)
 
