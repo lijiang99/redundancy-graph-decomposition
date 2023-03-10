@@ -1,5 +1,5 @@
 # !/bin/bash
-archs=("vgg16" "resnet20" "resnet32" "resnet44" "resnet56" "resnet110" "densenet40")
+archs=("vgg16" "resnet20" "resnet32" "resnet44" "resnet56" "resnet110" "densenet40" "googlenet")
 
 for arch in ${archs[@]}
 do
@@ -12,6 +12,9 @@ do
 			;;
 		"densenet40")
 			thresholds=(0.65 0.7 0.75)
+			;;
+		"googlenet")
+			thresholds=(0.7 0.75 0.8)
 			;;
 		*)
 	esac

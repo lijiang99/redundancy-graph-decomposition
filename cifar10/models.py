@@ -188,6 +188,106 @@ class DenseNet(nn.Module):
         out = self.fc(out)
         return out
 
+class Inception(nn.Module):
+    def __init__(self, in_channels, n1x1, n3x3_reduce, n3x3, n5x5_reduce, n5x5_1, n5x5_2, pool_channels, mask_nums):
+        super(Inception, self).__init__()
+        
+        self.b1 = nn.Sequential(
+            nn.Conv2d(in_channels, n1x1-mask_nums[0], kernel_size=1, bias=False),
+            nn.BatchNorm2d(n1x1-mask_nums[0]),
+            nn.ReLU(True),
+        )
+        
+        self.b2 = nn.Sequential(
+            nn.Conv2d(in_channels, n3x3_reduce-mask_nums[1], kernel_size=1, bias=False),
+            nn.BatchNorm2d(n3x3_reduce-mask_nums[1]),
+            nn.ReLU(True),
+            nn.Conv2d(n3x3_reduce-mask_nums[1], n3x3-mask_nums[2], kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(n3x3-mask_nums[2]),
+            nn.ReLU(True),
+        )
+        
+        self.b3 = nn.Sequential(
+            nn.Conv2d(in_channels, n5x5_reduce-mask_nums[3], kernel_size=1, bias=False),
+            nn.BatchNorm2d(n5x5_reduce-mask_nums[3]),
+            nn.ReLU(True),
+            nn.Conv2d(n5x5_reduce-mask_nums[3], n5x5_1-mask_nums[4], kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(n5x5_1-mask_nums[4]),
+            nn.ReLU(True),
+            nn.Conv2d(n5x5_1-mask_nums[4], n5x5_2-mask_nums[5], kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(n5x5_2-mask_nums[5]),
+            nn.ReLU(True),
+        )
+        
+        self.b4 = nn.Sequential(
+            nn.MaxPool2d(3, stride=1, padding=1),
+            nn.Conv2d(in_channels, pool_channels-mask_nums[6], kernel_size=1, bias=False),
+            nn.BatchNorm2d(pool_channels-mask_nums[6]),
+            nn.ReLU(True),
+        )
+    
+    def forward(self, x):
+        out1 = self.b1(x)
+        out2 = self.b2(x)
+        out3 = self.b3(x)
+        out4 = self.b4(x)
+        return torch.cat([out1,out2,out3,out4], 1)
+
+class GoogLeNet(nn.Module):
+    def __init__(self, inception, num_classes=10, mask_nums=None):
+        super(GoogLeNet, self).__init__()
+        self.mask_nums = mask_nums if mask_nums else [0] * 64
+        cnt = 0
+        self.pre_layers = nn.Sequential(
+            nn.Conv2d(3, 192-self.mask_nums[cnt], kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(192-self.mask_nums[cnt]),
+            nn.ReLU(True),
+        )
+        
+        self.inception_a3 = inception(192-self.mask_nums[cnt], 64, 96, 128, 16, 32, 32, 32, self.mask_nums[cnt+1:cnt+8])
+        cat_mask_num, cnt = self.mask_nums[cnt+1]+self.mask_nums[cnt+3]+self.mask_nums[cnt+6]+self.mask_nums[cnt+7], cnt+7
+        self.inception_b3 = inception(256-cat_mask_num, 128, 128, 192, 32, 96, 96, 64, self.mask_nums[cnt+1:cnt+8])
+        cat_mask_num, cnt = self.mask_nums[cnt+1]+self.mask_nums[cnt+3]+self.mask_nums[cnt+6]+self.mask_nums[cnt+7], cnt+7
+        
+        self.maxpool = nn.MaxPool2d(3, stride=2, padding=1)
+        
+        self.inception_a4 = inception(480-cat_mask_num, 192, 96, 208, 16, 48, 48, 64, self.mask_nums[cnt+1:cnt+8])
+        cat_mask_num, cnt = self.mask_nums[cnt+1]+self.mask_nums[cnt+3]+self.mask_nums[cnt+6]+self.mask_nums[cnt+7], cnt+7
+        self.inception_b4 = inception(512-cat_mask_num, 160, 112, 224, 24, 64, 64, 64, self.mask_nums[cnt+1:cnt+8])
+        cat_mask_num, cnt = self.mask_nums[cnt+1]+self.mask_nums[cnt+3]+self.mask_nums[cnt+6]+self.mask_nums[cnt+7], cnt+7
+        self.inception_c4 = inception(512-cat_mask_num, 128, 128, 256, 24, 64, 64, 64, self.mask_nums[cnt+1:cnt+8])
+        cat_mask_num, cnt = self.mask_nums[cnt+1]+self.mask_nums[cnt+3]+self.mask_nums[cnt+6]+self.mask_nums[cnt+7], cnt+7
+        self.inception_d4 = inception(512-cat_mask_num, 112, 144, 288, 32, 64, 64, 64, self.mask_nums[cnt+1:cnt+8])
+        cat_mask_num, cnt = self.mask_nums[cnt+1]+self.mask_nums[cnt+3]+self.mask_nums[cnt+6]+self.mask_nums[cnt+7], cnt+7
+        self.inception_e4 = inception(528-cat_mask_num, 256, 160, 320, 32, 128, 128, 128, self.mask_nums[cnt+1:cnt+8])
+        cat_mask_num, cnt = self.mask_nums[cnt+1]+self.mask_nums[cnt+3]+self.mask_nums[cnt+6]+self.mask_nums[cnt+7], cnt+7
+        
+        self.inception_a5 = inception(832-cat_mask_num, 256, 160, 320, 32, 128, 128, 128, self.mask_nums[cnt+1:cnt+8])
+        cat_mask_num, cnt = self.mask_nums[cnt+1]+self.mask_nums[cnt+3]+self.mask_nums[cnt+6]+self.mask_nums[cnt+7], cnt+7
+        self.inception_b5 = inception(832-cat_mask_num, 384, 192, 384, 48, 128, 128, 128, self.mask_nums[cnt+1:cnt+8])
+        cat_mask_num, cnt = self.mask_nums[cnt+1]+self.mask_nums[cnt+3]+self.mask_nums[cnt+6]+self.mask_nums[cnt+7], cnt+7
+        
+        self.avgpool = nn.AvgPool2d(8, stride=1)
+        self.linear = nn.Linear(1024-cat_mask_num, num_classes)
+    
+    def forward(self, x):
+        out = self.pre_layers(x)
+        out = self.inception_a3(out)
+        out = self.inception_b3(out)
+        out = self.maxpool(out)
+        out = self.inception_a4(out)
+        out = self.inception_b4(out)
+        out = self.inception_c4(out)
+        out = self.inception_d4(out)
+        out = self.inception_e4(out)
+        out = self.maxpool(out)
+        out = self.inception_a5(out)
+        out = self.inception_b5(out)
+        out = self.avgpool(out)
+        out = out.view(out.size(0), -1)
+        out = self.linear(out)
+        return out
+
 def vgg16(mask_nums=None):
     cfg = [64, 64, "M", 128, 128, "M", 256, 256, 256, "M", 512, 512, 512, "M", 512, 512, 512]
     return VGGNet(cfg=cfg, mask_nums=mask_nums)
@@ -209,3 +309,6 @@ def resnet110(mask_nums=None):
 
 def densenet40(mask_nums=None):
     return DenseNet(DenseBlock, Transition, 40, mask_nums=mask_nums)
+
+def googlenet(mask_nums=None):
+    return GoogLeNet(Inception, mask_nums=mask_nums)

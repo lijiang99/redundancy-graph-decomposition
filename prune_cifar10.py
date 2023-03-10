@@ -3,12 +3,13 @@ import argparse
 import platform
 import torch
 import torch.nn as nn
-from cifar10.models import vgg16, densenet40
+from cifar10.models import vgg16, densenet40, googlenet
 from cifar10.models import resnet20, resnet32, resnet44, resnet56, resnet110
 from cifar10.data import load_cifar10
 from cifar10.pruning import prune_vggnet_weights
 from cifar10.pruning import prune_resnet_weights
 from cifar10.pruning import prune_densenet_weights
+from cifar10.pruning import prune_googlenet_weights
 from utils.calculate import AverageMeter, accuracy
 from thop import profile
 from datetime import datetime
@@ -145,6 +146,11 @@ def main():
                                                    pruned_state_dict=pruned_state_dict,
                                                    origin_state_dict=origin_state_dict,
                                                    conv_layers=conv_layers, bn_layers=bn_layers)
+    elif "googlenet" in args.arch:
+        pruned_state_dict = prune_googlenet_weights(prune_info=prune_info,
+                                                    pruned_state_dict=pruned_state_dict,
+                                                    origin_state_dict=origin_state_dict,
+                                                    conv_layers=conv_layers, bn_layers=bn_layers)
     
     pruned_model.load_state_dict(pruned_state_dict)
     
@@ -186,7 +192,10 @@ def main():
     origin_flops, origin_params = profile(origin_model, inputs=(input_image,))
     pruned_flops, pruned_params = profile(pruned_model, inputs=(input_image,))
     logger.info(f"{'acc':<6}: {origin_best_acc:>6.2f}% -> {pruned_best_acc:>6.2f}% - drop: {origin_best_acc-pruned_best_acc:>5.2f}%")
-    logger.info(f"{'flops':<6}: {origin_flops/1e6:>6.2f}M -> {pruned_flops/1e6:>6.2f}M - drop: {(origin_flops-pruned_flops)/origin_flops*100:>5.2f}%")
+    if args.arch == "googlenet":
+        logger.info(f"{'flops':<6}: {origin_flops/1e9:>6.2f}G -> {pruned_flops/1e9:>6.2f}G - drop: {(origin_flops-pruned_flops)/origin_flops*100:>5.2f}%")
+    else:
+        logger.info(f"{'flops':<6}: {origin_flops/1e6:>6.2f}M -> {pruned_flops/1e6:>6.2f}M - drop: {(origin_flops-pruned_flops)/origin_flops*100:>5.2f}%")
     logger.info(f"{'params':<6}: {origin_params/1e6:>6.2f}M -> {pruned_params/1e6:>6.2f}M - drop: {(origin_params-pruned_params)/origin_params*100:>5.2f}%")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => done!")
 

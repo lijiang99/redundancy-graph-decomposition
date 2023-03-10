@@ -59,3 +59,32 @@ def prune_densenet_weights(prune_info, pruned_state_dict, origin_state_dict, con
             pruned_bn_param = origin_state_dict[f"{bn_layer}.{bn_param}"][in_saved_idxs]
             pruned_state_dict[f"{bn_layer}.{bn_param}"] = pruned_bn_param
     return pruned_state_dict
+
+def prune_googlenet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers):
+    """prune googlenet weights based on pruning information"""
+    in_saved_idxs, cat_saved_idxs = [0,1,2], []
+    offset, next_cat_saved_idxs = 0, []
+    for conv_layer, bn_layer in zip(conv_layers, bn_layers):
+        out_saved_idxs = prune_info[conv_layer]["saved_idxs"]
+        origin_conv_weight = origin_state_dict[f"{conv_layer}.weight"]
+        pruned_conv_weight = origin_conv_weight[out_saved_idxs,:,:,:][:,in_saved_idxs,:,:]
+        pruned_state_dict[f"{conv_layer}.weight"] = pruned_conv_weight
+        bn_params = ["bias", "running_mean", "running_var", "weight"]
+        for bn_param in bn_params:
+            pruned_bn_param = origin_state_dict[f"{bn_layer}.{bn_param}"][out_saved_idxs]
+            pruned_state_dict[f"{bn_layer}.{bn_param}"] = pruned_bn_param
+        if conv_layer == "pre_layers.0":
+            cat_saved_idxs = out_saved_idxs
+            in_saved_idxs = out_saved_idxs
+        elif ".".join(conv_layer.split(".")[1:]) in ["b1.0", "b2.3", "b3.6"]:
+            in_saved_idxs = cat_saved_idxs
+            next_cat_saved_idxs += list((torch.tensor(out_saved_idxs)+offset).cpu().numpy())
+            offset += origin_conv_weight.shape[0]   
+        elif "b4.1" in conv_layer:
+            next_cat_saved_idxs += list((torch.tensor(out_saved_idxs)+offset).cpu().numpy())
+            cat_saved_idxs = next_cat_saved_idxs
+            in_saved_idxs = next_cat_saved_idxs
+            offset, next_cat_saved_idxs = 0, []
+        else:
+            in_saved_idxs  = out_saved_idxs
+    return pruned_state_dict

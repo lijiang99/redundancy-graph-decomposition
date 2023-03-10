@@ -3,7 +3,7 @@ import argparse
 import platform
 import torch
 import torch.nn as nn
-from cifar10.models import vgg16, densenet40
+from cifar10.models import vgg16, densenet40, googlenet
 from cifar10.models import resnet20, resnet32, resnet44, resnet56, resnet110
 from imagenet.models import resnet50
 from cifar10.data import load_cifar10
