@@ -21,7 +21,7 @@ parser.add_argument("--batch-size", type=int, default=256, help="batch size")
 parser.add_argument("--learning-rate", type=float, default=0.1, help="initial learning rate")
 parser.add_argument("--momentum", type=float, default=0.9, help="momentum")
 parser.add_argument("--weight-decay", type=float, default=5e-4, help="weight decay")
-parser.add_argument("--adjust", type=int, default=50, help="learning rate decay step")
+parser.add_argument("--step-size", type=int, default=50, help="learning rate decay step size")
 
 def train(train_loader, model, criterion, optimizer, device):
     losses = AverageMeter("loss")
@@ -100,7 +100,7 @@ def main():
     optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate,
                                 momentum=args.momentum, weight_decay=args.weight_decay)
     decay_step = list(range(0, args.epochs, args.adjust)[1:])
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=decay_step, gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=0.1)
     criterion = nn.CrossEntropyLoss().to(device)
     
     # set the save path of the model
