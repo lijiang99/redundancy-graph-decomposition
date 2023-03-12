@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from cifar10.models import vgg16, densenet40, googlenet
 from cifar10.models import resnet20, resnet32, resnet44, resnet56, resnet110
-from imagenet.models import resnet50
+from imagenet.models import vgg16_bn, vgg19_bn, resnet50
 from cifar10.data import load_cifar10
 from imagenet.data import load_imagenet
 from utils.algorithm import FilterSelection
@@ -82,7 +82,7 @@ def main():
     state_dict = torch.load(pretrain_weights_path, map_location=device)
     model.load_state_dict(state_dict)
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{args.dataset_dir}'")
-    load_dataset = load_cifar10 if args.arch != "resnet50" else load_imagenet
+    load_dataset = load_cifar10 if args.arch not in ["vgg16_bn", "vgg19_bn", "resnet50"] else load_imagenet
     train_loader, val_loader = load_dataset(args.dataset_dir, batch_size=256)
     
     # inference to get output feature maps

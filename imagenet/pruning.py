@@ -1,3 +1,26 @@
+def prune_vggnet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers, linear_layers):
+    """prune vggnet weights based on pruning information"""
+    in_saved_idxs = [0,1,2]
+    for conv_layer, bn_layer in zip(conv_layers, bn_layers):
+        out_saved_idxs = prune_info[conv_layer]["saved_idxs"]
+        pruned_conv_weight = origin_state_dict[f"{conv_layer}.weight"][out_saved_idxs,:,:,:][:,in_saved_idxs,:,:]
+        pruned_state_dict[f"{conv_layer}.weight"] = pruned_conv_weight
+        bn_params = ["bias", "running_mean", "running_var", "weight"]
+        for bn_param in bn_params:
+            pruned_bn_param = origin_state_dict[f"{bn_layer}.{bn_param}"][out_saved_idxs]
+            pruned_state_dict[f"{bn_layer}.{bn_param}"] = pruned_bn_param
+        in_saved_idxs = out_saved_idxs
+    for i, linear_layer in enumerate(linear_layers):
+        if i == 0:
+            saved_idxs = []
+            for in_saved_idx in in_saved_idxs:
+                saved_idxs += list(range(in_saved_idx*7*7, in_saved_idx*7*7+7*7))
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"][:,saved_idxs]
+        else:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"]
+        pruned_state_dict[f"{linear_layer}.bias"] = origin_state_dict[f"{linear_layer}.bias"]
+    return pruned_state_dict
+
 def prune_resnet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers, linear_layers):
     """prune resnet weights based on pruning information"""
     in_saved_idxs, out_saved_idxs = [0,1,2], None

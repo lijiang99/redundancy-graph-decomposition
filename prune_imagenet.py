@@ -3,9 +3,9 @@ import argparse
 import platform
 import torch
 import torch.nn as nn
-from imagenet.models import resnet50
+from imagenet.models import vgg16_bn, vgg19_bn, resnet50
 from imagenet.data import load_imagenet
-from imagenet.pruning import prune_resnet_weights
+from imagenet.pruning import prune_vggnet_weights, prune_resnet_weights
 from utils.calculate import AverageMeter, accuracy
 from thop import profile
 from datetime import datetime
@@ -21,12 +21,12 @@ parser.add_argument("--pruneinfo-dir", type=str, default="./imagenet/prune-info/
 parser.add_argument("--saved-dir", type=str, default="./imagenet/fine-tune/", help="pruned model saved directory")
 parser.add_argument("--log-dir", type=str, default="./imagenet/log/fine-tune/", help="log file saved directory")
 parser.add_argument("--threshold", type=float, default=0.7, help="similarity threshold")
-parser.add_argument("--epochs", type=int, default=65, help="number of fine-tuning epochs")
+parser.add_argument("--epochs", type=int, default=50, help="number of fine-tuning epochs")
 parser.add_argument("--batch-size", type=int, default=256, help="batch size")
 parser.add_argument("--learning-rate", type=float, default=0.01, help="initial learning rate")
 parser.add_argument("--momentum", type=float, default=0.9, help="momentum")
 parser.add_argument("--weight-decay", type=float, default=1e-4, help="weight decay")
-parser.add_argument("--step-size", type=int, default=30, help="learning rate decay step size")
+parser.add_argument("--step-size", type=int, default=25, help="learning rate decay step size")
 
 def train(train_loader, model, criterion, optimizer, device, epoch, total_epochs, logger):
     losses = AverageMeter("loss")
@@ -141,7 +141,11 @@ def main():
     
     # load pruned weights to pruned model
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading pruned weights to pruned model '{pruned_model_str}'")
-    if "resnet" in args.arch:
+    if "vgg" in args.arch:
+        pruned_state_dict = prune_vggnet_weights(prune_info=prune_info,
+                                                 pruned_state_dict=pruned_state_dict, origin_state_dict=origin_state_dict,
+                                                 conv_layers=conv_layers, bn_layers=bn_layers, linear_layers=linear_layers)
+    elif "resnet" in args.arch:
         pruned_state_dict = prune_resnet_weights(prune_info=prune_info,
                                                  pruned_state_dict=pruned_state_dict, origin_state_dict=origin_state_dict,
                                                  conv_layers=conv_layers, bn_layers=bn_layers, linear_layers=linear_layers)
@@ -180,10 +184,10 @@ def main():
     input_image = torch.randn(1, 3, input_image_size, input_image_size).to(device)
     origin_flops, origin_params = profile(origin_model, inputs=(input_image,))
     pruned_flops, pruned_params = profile(pruned_model, inputs=(input_image,))
-    logger.info(f"{'top@1':<6}: {origin_top1_acc:>5.2f}% -> {pruned_top1_acc:>5.2f}% - drop: {origin_top1_acc-pruned_top1_acc:>5.2f}%")
-    logger.info(f"{'top@5':<6}: {origin_top5_acc:>5.2f}% -> {pruned_top5_acc:>5.2f}% - drop: {origin_top5_acc-pruned_top5_acc:>5.2f}%")
-    logger.info(f"{'flops':<6}: {origin_flops/1e9:>5.2f}G -> {pruned_flops/1e9:>5.2f}G - drop: {(origin_flops-pruned_flops)/origin_flops*100:>5.2f}%")
-    logger.info(f"{'params':<6}: {origin_params/1e6:>5.2f}M -> {pruned_params/1e6:>5.2f}M - drop: {(origin_params-pruned_params)/origin_params*100:>5.2f}%")
+    logger.info(f"{'top@1':<6}: {origin_top1_acc:>6.2f}% -> {pruned_top1_acc:>6.2f}% - drop: {origin_top1_acc-pruned_top1_acc:>5.2f}%")
+    logger.info(f"{'top@5':<6}: {origin_top5_acc:>6.2f}% -> {pruned_top5_acc:>6.2f}% - drop: {origin_top5_acc-pruned_top5_acc:>5.2f}%")
+    logger.info(f"{'flops':<6}: {origin_flops/1e9:>6.2f}G -> {pruned_flops/1e9:>6.2f}G - drop: {(origin_flops-pruned_flops)/origin_flops*100:>5.2f}%")
+    logger.info(f"{'params':<6}: {origin_params/1e6:>6.2f}M -> {pruned_params/1e6:>6.2f}M - drop: {(origin_params-pruned_params)/origin_params*100:>5.2f}%")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => done!")
 
 if __name__ == "__main__":

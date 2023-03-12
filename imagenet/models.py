@@ -1,5 +1,41 @@
 import torch.nn as nn
 
+class VGGNet(nn.Module):
+    def __init__(self, cfg, num_classes=1000, dropout=0.5, mask_nums=None):
+        super(VGGNet, self).__init__()
+        self.mask_nums = mask_nums if mask_nums else [0] * len(cfg)
+        self.features = self._make_layers(cfg)
+        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
+        self.classifier = nn.Sequential(
+            nn.Linear((512-self.mask_nums[-1])*7*7, 4096),
+            nn.ReLU(True),
+            nn.Dropout(p=dropout),
+            nn.Linear(4096, 4096),
+            nn.ReLU(True),
+            nn.Dropout(p=dropout),
+            nn.Linear(4096, num_classes),
+        )
+    
+    def _make_layers(self, cfg):
+        layers = []
+        in_channels, cnt = 3, 0
+        for x in cfg:
+            if x == "M":
+                layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
+            else:
+                out_channels = x - self.mask_nums[cnt]
+                conv2d = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+                layers += [conv2d, nn.BatchNorm2d(out_channels), nn.ReLU(inplace=True)]
+                in_channels, cnt = out_channels, cnt + 1
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        out = self.features(x)
+        out = self.avgpool(out)
+        out = out.view(out.size(0), -1)
+        out = self.classifier(out)
+        return out
+
 def conv3x3(in_channels, out_channels, stride=1, groups=1, dilation=1):
     return nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride,
                      padding=dilation, groups=groups, bias=False, dilation=dilation)
@@ -94,6 +130,14 @@ class ResNet(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.fc(out)
         return out
+
+def vgg16_bn(mask_nums=None):
+    cfg = [64, 64, "M", 128, 128, "M", 256, 256, 256, "M", 512, 512, 512, "M", 512, 512, 512, "M"]
+    return VGGNet(cfg=cfg, mask_nums=mask_nums)
+
+def vgg19_bn(mask_nums=None):
+    cfg = [64, 64, "M", 128, 128, "M", 256, 256, 256, 256, "M", 512, 512, 512, 512, "M", 512, 512, 512, 512, "M"]
+    return VGGNet(cfg=cfg, mask_nums=mask_nums)
 
 def resnet50(mask_nums=None):
     return ResNet(Bottleneck, [3, 4, 6, 3], mask_nums=mask_nums)
