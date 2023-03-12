@@ -124,12 +124,14 @@ def main():
         prune_info = json.load(f)
     
     # get name of conv layers and bn layers
-    conv_layers, bn_layers = [], []
+    conv_layers, bn_layers, linear_layers = [], [], []
     for name, module in origin_model.named_modules():
         if isinstance(module, nn.Conv2d):
             conv_layers.append(name)
-        if isinstance(module, nn.BatchNorm2d):
+        elif isinstance(module, nn.BatchNorm2d):
             bn_layers.append(name)
+        elif isinstance(module, nn.Linear):
+            linear_layers.append(name)
     
     # create pruned model
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => creating pruned model '{pruned_model_str}'")
@@ -141,9 +143,8 @@ def main():
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading pruned weights to pruned model '{pruned_model_str}'")
     if "resnet" in args.arch:
         pruned_state_dict = prune_resnet_weights(prune_info=prune_info,
-                                                 pruned_state_dict=pruned_state_dict,
-                                                 origin_state_dict=origin_state_dict,
-                                                 conv_layers=conv_layers, bn_layers=bn_layers)
+                                                 pruned_state_dict=pruned_state_dict, origin_state_dict=origin_state_dict,
+                                                 conv_layers=conv_layers, bn_layers=bn_layers, linear_layers=linear_layers)
     
     pruned_model.load_state_dict(pruned_state_dict)
     

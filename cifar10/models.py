@@ -2,23 +2,18 @@ import torch
 import torch.nn as nn
 from collections import OrderedDict
 
-relucfg = [2, 6, 9, 13, 16, 19, 23, 26, 29, 33, 36, 39]
-convcfg = [0, 3, 7, 10, 14, 17, 20, 24, 27, 30, 34, 37]
-
 class VGGNet(nn.Module):
     def __init__(self, cfg, num_classes=10, mask_nums=None):
         super(VGGNet, self).__init__()
         self.mask_nums = mask_nums if mask_nums else [0] * len(cfg)
-        self.relucfg = relucfg
-        self.covcfg = convcfg
         self.features = self._make_layers(cfg)
         self.avgpool = nn.AvgPool2d(2)
         last_output_channels = cfg[-1] - self.mask_nums[-1]
         self.classifier = nn.Sequential(OrderedDict([
-            ("linear1", nn.Linear(last_output_channels, last_output_channels)),
-            ("norm", nn.BatchNorm1d(last_output_channels)),
+            ("linear1", nn.Linear(last_output_channels, cfg[-1])),
+            ("norm", nn.BatchNorm1d(cfg[-1])),
             ("relu", nn.ReLU(inplace=True)),
-            ("linear2", nn.Linear(last_output_channels, num_classes)),
+            ("linear2", nn.Linear(cfg[-1], num_classes)),
         ]))
     
     def _make_layers(self, cfg):

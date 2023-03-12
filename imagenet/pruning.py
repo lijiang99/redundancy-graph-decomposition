@@ -1,4 +1,4 @@
-def prune_resnet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers):
+def prune_resnet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers, linear_layers):
     """prune resnet weights based on pruning information"""
     in_saved_idxs, out_saved_idxs = [0,1,2], None
     last_downsample_out_saved_idxs = prune_info["conv1"]["saved_idxs"]
@@ -27,4 +27,10 @@ def prune_resnet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_
         if "downsample" in conv_layer:
             in_saved_idxs = downsample_out_saved_idxs
             last_downsample_out_saved_idxs = downsample_out_saved_idxs
+    for i, linear_layer in enumerate(linear_layers):
+        if i == 0:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"][:,in_saved_idxs]
+        else:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"]
+        pruned_state_dict[f"{linear_layer}.bias"] = origin_state_dict[f"{linear_layer}.bias"]
     return pruned_state_dict

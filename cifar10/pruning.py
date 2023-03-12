@@ -1,6 +1,6 @@
 import torch
 
-def prune_vggnet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers):
+def prune_vggnet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers, linear_layers):
     """prune vggnet weights based on pruning information"""
     in_saved_idxs = [0,1,2]
     for conv_layer, bn_layer in zip(conv_layers, bn_layers):
@@ -12,9 +12,18 @@ def prune_vggnet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_
             pruned_bn_param = origin_state_dict[f"{bn_layer}.{bn_param}"][out_saved_idxs]
             pruned_state_dict[f"{bn_layer}.{bn_param}"] = pruned_bn_param
         in_saved_idxs = out_saved_idxs
+    for i, linear_layer in enumerate(linear_layers):
+        if i == 0:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"][:,in_saved_idxs]
+        else:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"]
+        pruned_state_dict[f"{linear_layer}.bias"] = origin_state_dict[f"{linear_layer}.bias"]
+    bn_params = ["bias", "running_mean", "running_var", "weight"]
+    for bn_param in bn_params:
+        pruned_state_dict[f"classifier.norm.{bn_param}"] = origin_state_dict[f"classifier.norm.{bn_param}"]
     return pruned_state_dict
 
-def prune_resnet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers):
+def prune_resnet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers, linear_layers):
     """prune resnet weights based on pruning information"""
     in_saved_idxs, out_saved_idxs = [0,1,2], None
     last_downsample_out_saved_idxs = prune_info["conv"]["saved_idxs"]
@@ -37,9 +46,15 @@ def prune_resnet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_
             pruned_bn_param = origin_state_dict[f"{bn_layer}.{bn_param}"][out_saved_idxs]
             pruned_state_dict[f"{bn_layer}.{bn_param}"] = pruned_bn_param
         in_saved_idxs = downsample_out_saved_idxs
+    for i, linear_layer in enumerate(linear_layers):
+        if i == 0:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"][:,in_saved_idxs]
+        else:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"]
+        pruned_state_dict[f"{linear_layer}.bias"] = origin_state_dict[f"{linear_layer}.bias"]
     return pruned_state_dict
 
-def prune_densenet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers):
+def prune_densenet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers, linear_layers):
     """prune densenet weights based on pruning information"""
     in_saved_idxs, last_in_saved_idxs = [0,1,2], []
     for conv_layer, bn_layer in zip(conv_layers, bn_layers):
@@ -58,9 +73,15 @@ def prune_densenet_weights(prune_info, pruned_state_dict, origin_state_dict, con
         for bn_param in bn_params:
             pruned_bn_param = origin_state_dict[f"{bn_layer}.{bn_param}"][in_saved_idxs]
             pruned_state_dict[f"{bn_layer}.{bn_param}"] = pruned_bn_param
+    for i, linear_layer in enumerate(linear_layers):
+        if i == 0:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"][:,in_saved_idxs]
+        else:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"]
+        pruned_state_dict[f"{linear_layer}.bias"] = origin_state_dict[f"{linear_layer}.bias"]
     return pruned_state_dict
 
-def prune_googlenet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers):
+def prune_googlenet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers, linear_layers):
     """prune googlenet weights based on pruning information"""
     in_saved_idxs, cat_saved_idxs = [0,1,2], []
     offset, next_cat_saved_idxs = 0, []
@@ -87,4 +108,10 @@ def prune_googlenet_weights(prune_info, pruned_state_dict, origin_state_dict, co
             offset, next_cat_saved_idxs = 0, []
         else:
             in_saved_idxs  = out_saved_idxs
+    for i, linear_layer in enumerate(linear_layers):
+        if i == 0:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"][:,in_saved_idxs]
+        else:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"]
+        pruned_state_dict[f"{linear_layer}.bias"] = origin_state_dict[f"{linear_layer}.bias"]
     return pruned_state_dict
