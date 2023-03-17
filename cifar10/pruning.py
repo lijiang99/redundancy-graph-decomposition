@@ -6,7 +6,9 @@ def prune_vggnet_weights(prune_info, pruned_state_dict, origin_state_dict, conv_
     for conv_layer, bn_layer in zip(conv_layers, bn_layers):
         out_saved_idxs = prune_info[conv_layer]["saved_idxs"]
         pruned_conv_weight = origin_state_dict[f"{conv_layer}.weight"][out_saved_idxs,:,:,:][:,in_saved_idxs,:,:]
+        pruned_conv_bias = origin_state_dict[f"{conv_layer}.bias"][out_saved_idxs]
         pruned_state_dict[f"{conv_layer}.weight"] = pruned_conv_weight
+        pruned_state_dict[f"{conv_layer}.bias"] = pruned_conv_bias
         bn_params = ["bias", "running_mean", "running_var", "weight"]
         for bn_param in bn_params:
             pruned_bn_param = origin_state_dict[f"{bn_layer}.{bn_param}"][out_saved_idxs]
