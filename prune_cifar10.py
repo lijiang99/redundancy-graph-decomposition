@@ -25,7 +25,7 @@ parser.add_argument("--pruneinfo-dir", type=str, default="./cifar10/prune-info/"
 parser.add_argument("--saved-dir", type=str, default="./cifar10/fine-tune/", help="pruned model saved directory")
 parser.add_argument("--log-dir", type=str, default="./cifar10/log/fine-tune/", help="log file saved directory")
 parser.add_argument("--threshold", type=float, default=0.7, help="similarity threshold")
-parser.add_argument("--epochs", type=int, default=90, help="number of fine-tuning epochs")
+parser.add_argument("--epochs", type=int, default=70, help="number of fine-tuning epochs")
 parser.add_argument("--batch-size", type=int, default=256, help="batch size")
 parser.add_argument("--learning-rate", type=float, default=0.01, help="initial learning rate")
 parser.add_argument("--momentum", type=float, default=0.9, help="momentum")
@@ -172,7 +172,7 @@ def main():
         end_time = datetime.now()
         lr = optimizer.param_groups[0]["lr"]
         consume_time = int((end_time-beg_time).total_seconds())
-        train_message = f"Epoch[{epoch+1:0>2}/{args.epochs}] - time: {consume_time}s - lr: {lr} - loss: {train_loss:.2f} - prec@1: {train_acc:.2f}"
+        train_message = f"Epoch[{epoch+1:0>2}/{args.epochs}] - time: {consume_time:0>2}s - lr: {lr} - loss: {train_loss:.2f} - prec@1: {train_acc:.2f}"
         logger.info(train_message)
         valid_loss, valid_acc = validate(val_loader, pruned_model, criterion, device)
         if valid_acc > best_acc:

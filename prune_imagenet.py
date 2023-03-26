@@ -26,7 +26,7 @@ parser.add_argument("--batch-size", type=int, default=256, help="batch size")
 parser.add_argument("--learning-rate", type=float, default=0.01, help="initial learning rate")
 parser.add_argument("--momentum", type=float, default=0.9, help="momentum")
 parser.add_argument("--weight-decay", type=float, default=1e-4, help="weight decay")
-parser.add_argument("--step-size", type=int, default=25, help="learning rate decay step size")
+parser.add_argument("--step-size", type=int, default=20, help="learning rate decay step size")
 
 def train(train_loader, model, criterion, optimizer, device, epoch, total_epochs, logger):
     losses = AverageMeter("loss")

@@ -99,7 +99,6 @@ def main():
     # set hyperparameters
     optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate,
                                 momentum=args.momentum, weight_decay=args.weight_decay)
-    decay_step = list(range(0, args.epochs, args.adjust)[1:])
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=0.1)
     criterion = nn.CrossEntropyLoss().to(device)
     
