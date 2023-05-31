@@ -3,7 +3,7 @@ import argparse
 import platform
 import torch
 import torch.nn as nn
-from cifar10.models import vgg16, densenet40, googlenet
+from cifar10.models import vgg16, densenet40, googlenet, mobilenet_v1, mobilenet_v2
 from cifar10.models import resnet20, resnet32, resnet44, resnet56, resnet110
 from imagenet.models import vgg16_bn, vgg19_bn, resnet50
 from cifar10.data import load_cifar10
@@ -105,6 +105,16 @@ def main():
     if args.arch == "resnet50":
         for name, module in model.named_modules():
             if isinstance(module, nn.Conv2d) and "conv3" not in name:
+                sub_conv_layers.append(name)
+    if args.arch == "mobilenet_v1":
+        for name, module in model.named_modules():
+            if isinstance(module, nn.Conv2d) and (name == "model.0.0" or name.split(".")[2] == "3"):
+                sub_conv_layers.append(name)
+    if args.arch == "mobilenet_v2":
+        for name, module in model.named_modules():
+            if ((isinstance(module, nn.Conv2d)) and
+                ((name in ["conv1", "conv2"]) or ("shortcut" in name) or ("conv1" in name)
+                 or (("conv3" in name) and (name.split(".")[1] in ["3", "6", "13"])))):
                 sub_conv_layers.append(name)
     
     for conv_layer in sub_conv_layers:

@@ -3,13 +3,15 @@ import argparse
 import platform
 import torch
 import torch.nn as nn
-from cifar10.models import vgg16, densenet40, googlenet
+from cifar10.models import vgg16, densenet40, googlenet, mobilenet_v1, mobilenet_v2
 from cifar10.models import resnet20, resnet32, resnet44, resnet56, resnet110
 from cifar10.data import load_cifar10
 from cifar10.pruning import prune_vggnet_weights
 from cifar10.pruning import prune_resnet_weights
 from cifar10.pruning import prune_densenet_weights
 from cifar10.pruning import prune_googlenet_weights
+from cifar10.pruning import prune_mobilenet_v1_weights
+from cifar10.pruning import prune_mobilenet_v2_weights
 from utils.calculate import AverageMeter, accuracy
 from thop import profile
 from datetime import datetime
@@ -149,6 +151,14 @@ def main():
         pruned_state_dict = prune_googlenet_weights(prune_info=prune_info,
                                                     pruned_state_dict=pruned_state_dict, origin_state_dict=origin_state_dict,
                                                     conv_layers=conv_layers, bn_layers=bn_layers, linear_layers=linear_layers)
+    elif "mobilenet_v1" == args.arch:
+        pruned_state_dict = prune_mobilenet_v1_weights(prune_info=prune_info,
+                                                       pruned_state_dict=pruned_state_dict, origin_state_dict=origin_state_dict,
+                                                       conv_layers=conv_layers, bn_layers=bn_layers, linear_layers=linear_layers)
+    elif "mobilenet_v2" == args.arch:
+        pruned_state_dict = prune_mobilenet_v2_weights(prune_info=prune_info,
+                                                       pruned_state_dict=pruned_state_dict, origin_state_dict=origin_state_dict,
+                                                       conv_layers=conv_layers, bn_layers=bn_layers, linear_layers=linear_layers)
     
     pruned_model.load_state_dict(pruned_state_dict)
     

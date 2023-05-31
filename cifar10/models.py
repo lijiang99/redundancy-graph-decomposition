@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from collections import OrderedDict
 
 class VGGNet(nn.Module):
@@ -283,6 +284,119 @@ class GoogLeNet(nn.Module):
         out = self.linear(out)
         return out
 
+class MobileNet_V1(nn.Module):
+    def __init__(self, num_classes=10, mask_nums=None):
+        super(MobileNet_V1, self).__init__()
+        
+        def conv_bn(in_channels, out_channels, stride):
+            return nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, 3, stride, 1, bias=False),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU(inplace=True))
+        
+        def conv_dw(in_channels, out_channels, stride):
+            return nn.Sequential(
+                nn.Conv2d(in_channels, in_channels, 3, stride, 1, groups=in_channels, bias=False),
+                nn.BatchNorm2d(in_channels),
+                nn.ReLU(inplace=True),
+                
+                nn.Conv2d(in_channels, out_channels, 1, 1, 0, bias=False),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU(inplace=True))
+        
+        self.mask_nums = mask_nums if mask_nums else [0] * 14
+        self.model = nn.Sequential(
+            conv_bn(3, 32-self.mask_nums[0], 1),
+            conv_dw(32-self.mask_nums[0], 64-self.mask_nums[1], 1),
+            conv_dw(64-self.mask_nums[1], 128-self.mask_nums[2], 2),
+            conv_dw(128-self.mask_nums[2], 128-self.mask_nums[3], 1),
+            conv_dw(128-self.mask_nums[3], 256-self.mask_nums[4], 2),
+            conv_dw(256-self.mask_nums[4], 256-self.mask_nums[5], 1),
+            conv_dw(256-self.mask_nums[5], 512-self.mask_nums[6], 2),
+            conv_dw(512-self.mask_nums[6], 512-self.mask_nums[7], 1),
+            conv_dw(512-self.mask_nums[7], 512-self.mask_nums[8], 1),
+            conv_dw(512-self.mask_nums[8], 512-self.mask_nums[9], 1),
+            conv_dw(512-self.mask_nums[9], 512-self.mask_nums[10], 1),
+            conv_dw(512-self.mask_nums[10], 512-self.mask_nums[11], 1),
+            conv_dw(512-self.mask_nums[11], 1024-self.mask_nums[12], 2),
+            conv_dw(1024-self.mask_nums[12], 1024-self.mask_nums[13], 1),
+            nn.AvgPool2d(2))
+        self.fc = nn.Linear(1024-self.mask_nums[13], num_classes)
+
+    def forward(self, x):
+        out = self.model(x)
+        out = out.view(out.size(0), -1)
+        out = self.fc(out)
+        return out
+
+class InvertedResidual(nn.Module):
+    def __init__(self, in_channels, out_channels, expansion, stride, mask_nums):
+        super(InvertedResidual, self).__init__()
+        self.stride = stride
+        
+        channels = expansion * in_channels - mask_nums[1]
+        in_channels = in_channels - mask_nums[0]
+        out_channels = out_channels - mask_nums[2]
+        self.conv1 = nn.Conv2d(in_channels, channels, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=stride, padding=1, groups=channels, bias=False)
+        self.bn2 = nn.BatchNorm2d(channels)
+        self.conv3 = nn.Conv2d(channels, out_channels, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn3 = nn.BatchNorm2d(out_channels)
+
+        self.shortcut = nn.Sequential()
+        if stride == 1:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=False),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU(inplace=True))
+
+    def forward(self, x):
+        out = F.relu6(self.bn1(self.conv1(x)))
+        out = F.relu6(self.bn2(self.conv2(out)))
+        out = self.bn3(self.conv3(out))
+        out = out + self.shortcut(x) if self.stride==1 else out
+        return out
+
+class MobileNet_V2(nn.Module):
+    def __init__(self, invertedresidual, num_classes=10, mask_nums=None):
+        super(MobileNet_V2, self).__init__()
+        self.mask_nums = mask_nums if mask_nums else [0] * 36
+        self.inverted_residual_setting = [(1,  16, 1, 1),
+                                          (6,  24, 2, 1),
+                                          (6,  32, 3, 2),
+                                          (6,  64, 4, 2),
+                                          (6,  96, 3, 1),
+                                          (6, 160, 3, 2),
+                                          (6, 320, 1, 1)]
+        first_out_channels = 32 - self.mask_nums[0]
+        self.conv1 = nn.Conv2d(3, first_out_channels, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(first_out_channels)
+        self.layers = self._make_layers(invertedresidual, in_channels=32)
+        last_out_channels = 1280 - self.mask_nums[-1]
+        self.conv2 = nn.Conv2d(320-self.mask_nums[-2], last_out_channels, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn2 = nn.BatchNorm2d(last_out_channels)
+        self.linear = nn.Linear(last_out_channels, num_classes)
+
+    def _make_layers(self, invertedresidual, in_channels):
+        layers, cnt = [], 1
+        for expansion, out_channels, num_blocks, stride in self.inverted_residual_setting:
+            strides = [stride] + [1]*(num_blocks-1)
+            for stride in strides:
+                layers.append(invertedresidual(in_channels, out_channels, expansion, stride, self.mask_nums[cnt-1:cnt+2]))
+                in_channels = out_channels
+                cnt += 2
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.layers(out)
+        out = F.relu(self.bn2(self.conv2(out)))
+        out = F.avg_pool2d(out, 4)
+        out = out.view(out.size(0), -1)
+        out = self.linear(out)
+        return out
+
 def vgg16(mask_nums=None):
     cfg = [64, 64, "M", 128, 128, "M", 256, 256, 256, "M", 512, 512, 512, "M", 512, 512, 512]
     return VGGNet(cfg=cfg, mask_nums=mask_nums)
@@ -307,3 +421,9 @@ def densenet40(mask_nums=None):
 
 def googlenet(mask_nums=None):
     return GoogLeNet(Inception, mask_nums=mask_nums)
+
+def mobilenet_v1(mask_nums=None):
+    return MobileNet_V1(mask_nums=mask_nums)
+
+def mobilenet_v2(mask_nums=None):
+    return MobileNet_V2(InvertedResidual, mask_nums=mask_nums)

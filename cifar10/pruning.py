@@ -117,3 +117,59 @@ def prune_googlenet_weights(prune_info, pruned_state_dict, origin_state_dict, co
             pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"]
         pruned_state_dict[f"{linear_layer}.bias"] = origin_state_dict[f"{linear_layer}.bias"]
     return pruned_state_dict
+
+def prune_mobilenet_v1_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers, linear_layers):
+    """prune mobilenet_v1 weights based on pruning information"""
+    in_saved_idxs, out_saved_idxs = [0,1,2], None
+    for conv_layer, bn_layer in zip(conv_layers, bn_layers):
+        if conv_layer == "model.0.0" or conv_layer.split(".")[2] == "3":
+            out_saved_idxs = prune_info[conv_layer]["saved_idxs"]
+        pruned_conv_weight = origin_state_dict[f"{conv_layer}.weight"][out_saved_idxs,:,:,:][:,in_saved_idxs,:,:]
+        pruned_state_dict[f"{conv_layer}.weight"] = pruned_conv_weight
+        bn_params = ["bias", "running_mean", "running_var", "weight"]
+        for bn_param in bn_params:
+            pruned_bn_param = origin_state_dict[f"{bn_layer}.{bn_param}"][out_saved_idxs]
+            pruned_state_dict[f"{bn_layer}.{bn_param}"] = pruned_bn_param
+        if conv_layer == "model.0.0" or conv_layer.split(".")[2] == "3":
+            in_saved_idxs = [0]
+        else:
+            in_saved_idxs = out_saved_idxs
+    for i, linear_layer in enumerate(linear_layers):
+        if i == 0:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"][:,out_saved_idxs]
+        else:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"]
+        pruned_state_dict[f"{linear_layer}.bias"] = origin_state_dict[f"{linear_layer}.bias"]
+    return pruned_state_dict
+
+def prune_mobilenet_v2_weights(prune_info, pruned_state_dict, origin_state_dict, conv_layers, bn_layers, linear_layers):
+    """prune mobilenet_v2 weights based on pruning information"""
+    in_saved_idxs, out_saved_idxs, next_block_in_saved_idxs = [0,1,2], None, None
+    for conv_layer, bn_layer in zip(conv_layers, bn_layers):
+        if ((conv_layer in ["conv1", "conv2"]) or ("shortcut" in conv_layer) or ("conv1" in conv_layer)
+            or (("conv3" in conv_layer) and (conv_layer.split(".")[1] in ["3", "6", "13"]))):
+            out_saved_idxs = prune_info[conv_layer]["saved_idxs"]
+            if not("conv1" != conv_layer and "conv1" in conv_layer):
+                next_block_in_saved_idxs = out_saved_idxs
+        elif "conv3" in conv_layer:
+            shortcut_layer = conv_layer.replace("conv3", "shortcut.0")
+            out_saved_idxs = prune_info[shortcut_layer]["saved_idxs"]
+        pruned_conv_weight = origin_state_dict[f"{conv_layer}.weight"][out_saved_idxs,:,:,:][:,in_saved_idxs,:,:]
+        pruned_state_dict[f"{conv_layer}.weight"] = pruned_conv_weight
+        bn_params = ["bias", "running_mean", "running_var", "weight"]
+        for bn_param in bn_params:
+            pruned_bn_param = origin_state_dict[f"{bn_layer}.{bn_param}"][out_saved_idxs]
+            pruned_state_dict[f"{bn_layer}.{bn_param}"] = pruned_bn_param
+        if "layers" in conv_layer and "conv1" in conv_layer:
+            in_saved_idxs = [0]
+        elif "conv3" in conv_layer:
+            in_saved_idxs = next_block_in_saved_idxs
+        else:
+            in_saved_idxs = out_saved_idxs
+    for i, linear_layer in enumerate(linear_layers):
+        if i == 0:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"][:,in_saved_idxs]
+        else:
+            pruned_state_dict[f"{linear_layer}.weight"] = origin_state_dict[f"{linear_layer}.weight"]
+        pruned_state_dict[f"{linear_layer}.bias"] = origin_state_dict[f"{linear_layer}.bias"]
+    return pruned_state_dict
