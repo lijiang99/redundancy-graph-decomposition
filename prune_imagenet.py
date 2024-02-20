@@ -3,9 +3,9 @@ import argparse
 import platform
 import torch
 import torch.nn as nn
-from imagenet.models import vgg16_bn, vgg19_bn, resnet50
-from imagenet.data import load_imagenet
-from imagenet.pruning import prune_vggnet_weights, prune_resnet_weights
+from large_scale.models import vgg16_bn, vgg19_bn, resnet50
+from large_scale.pruning import prune_vggnet_weights, prune_resnet_weights
+from utils.data import load_imagenet
 from utils.calculate import AverageMeter, accuracy
 from thop import profile
 from datetime import datetime
@@ -108,9 +108,10 @@ def main():
     logger.info(f"{'device':<6} version: {device_prop.name} ({device_prop.total_memory/(1024**3):.2f} GB)")
     
     # load pre-trained weights and model
+    num_classes = 1000
     pretrain_weights_path = os.path.join(args.pretrain_dir, f"{args.arch}-weights.pth")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading weights from '{pretrain_weights_path}'")
-    origin_model = eval(args.arch)().to(device)
+    origin_model = eval(args.arch)(num_classes=num_classes).to(device)
     origin_state_dict = torch.load(pretrain_weights_path, map_location=device)
     origin_model.load_state_dict(origin_state_dict)
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{args.dataset_dir}'")
@@ -135,7 +136,7 @@ def main():
     
     # create pruned model
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => creating pruned model '{pruned_model_str}'")
-    pruned_model = eval(args.arch)(mask_nums=[value["mask_num"] for value in prune_info.values()]).to(device)
+    pruned_model = eval(args.arch)(num_classes=num_classes, mask_nums=[value["mask_num"] for value in prune_info.values()]).to(device)
     pruned_state_dict = pruned_model.state_dict()
     logger.info(str(pruned_model))
     

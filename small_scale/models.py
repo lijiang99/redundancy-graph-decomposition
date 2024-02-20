@@ -397,33 +397,33 @@ class MobileNet_V2(nn.Module):
         out = self.linear(out)
         return out
 
-def vgg16(mask_nums=None):
+def vgg16(num_classes=10, mask_nums=None):
     cfg = [64, 64, "M", 128, 128, "M", 256, 256, 256, "M", 512, 512, 512, "M", 512, 512, 512]
-    return VGGNet(cfg=cfg, mask_nums=mask_nums)
+    return VGGNet(cfg=cfg, num_classes=num_classes, mask_nums=mask_nums)
 
-def resnet20(mask_nums=None):
-    return ResNet(ResidualBlock, [3, 3, 3], mask_nums=mask_nums)
+def resnet20(num_classes=10, mask_nums=None):
+    return ResNet(ResidualBlock, [3, 3, 3], num_classes=num_classes, mask_nums=mask_nums)
 
-def resnet32(mask_nums=None):
-    return ResNet(ResidualBlock, [5, 5, 5], mask_nums=mask_nums)
+def resnet32(num_classes=10, mask_nums=None):
+    return ResNet(ResidualBlock, [5, 5, 5], num_classes=num_classes, mask_nums=mask_nums)
 
-def resnet44(mask_nums=None):
-    return ResNet(ResidualBlock, [7, 7, 7], mask_nums=mask_nums)
+def resnet44(num_classes=10, mask_nums=None):
+    return ResNet(ResidualBlock, [7, 7, 7], num_classes=num_classes, mask_nums=mask_nums)
 
-def resnet56(mask_nums=None):
-    return ResNet(ResidualBlock, [9, 9, 9], mask_nums=mask_nums)
+def resnet56(num_classes=10, mask_nums=None):
+    return ResNet(ResidualBlock, [9, 9, 9], num_classes=num_classes, mask_nums=mask_nums)
 
-def resnet110(mask_nums=None):
-    return ResNet(ResidualBlock, [18, 18, 18], mask_nums=mask_nums)
+def resnet110(num_classes=10, mask_nums=None):
+    return ResNet(ResidualBlock, [18, 18, 18], num_classes=num_classes, mask_nums=mask_nums)
 
-def densenet40(mask_nums=None):
-    return DenseNet(DenseBlock, Transition, 40, mask_nums=mask_nums)
+def densenet40(num_classes=10, mask_nums=None):
+    return DenseNet(DenseBlock, Transition, 40, num_classes=num_classes, mask_nums=mask_nums)
 
-def googlenet(mask_nums=None):
-    return GoogLeNet(Inception, mask_nums=mask_nums)
+def googlenet(num_classes=10, mask_nums=None):
+    return GoogLeNet(Inception, num_classes=num_classes, mask_nums=mask_nums)
 
-def mobilenet_v1(mask_nums=None):
-    return MobileNet_V1(mask_nums=mask_nums)
+def mobilenet_v1(num_classes=10, mask_nums=None):
+    return MobileNet_V1(num_classes=num_classes, mask_nums=mask_nums)
 
-def mobilenet_v2(mask_nums=None):
-    return MobileNet_V2(InvertedResidual, mask_nums=mask_nums)
+def mobilenet_v2(num_classes=10, mask_nums=None):
+    return MobileNet_V2(InvertedResidual, num_classes=num_classes, mask_nums=mask_nums)

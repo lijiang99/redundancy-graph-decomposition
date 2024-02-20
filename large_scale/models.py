@@ -131,13 +131,13 @@ class ResNet(nn.Module):
         out = self.fc(out)
         return out
 
-def vgg16_bn(mask_nums=None):
+def vgg16_bn(num_classes=1000, mask_nums=None):
     cfg = [64, 64, "M", 128, 128, "M", 256, 256, 256, "M", 512, 512, 512, "M", 512, 512, 512, "M"]
-    return VGGNet(cfg=cfg, mask_nums=mask_nums)
+    return VGGNet(cfg=cfg, num_classes=num_classes, mask_nums=mask_nums)
 
-def vgg19_bn(mask_nums=None):
+def vgg19_bn(num_classes=1000, mask_nums=None):
     cfg = [64, 64, "M", 128, 128, "M", 256, 256, 256, 256, "M", 512, 512, 512, 512, "M", 512, 512, 512, 512, "M"]
-    return VGGNet(cfg=cfg, mask_nums=mask_nums)
+    return VGGNet(cfg=cfg, num_classes=num_classes, mask_nums=mask_nums)
 
-def resnet50(mask_nums=None):
-    return ResNet(Bottleneck, [3, 4, 6, 3], mask_nums=mask_nums)
+def resnet50(num_classes=1000, mask_nums=None):
+    return ResNet(Bottleneck, [3, 4, 6, 3], num_classes=num_classes, mask_nums=mask_nums)

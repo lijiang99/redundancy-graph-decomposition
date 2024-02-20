@@ -5,17 +5,17 @@ import torch
 import torch.nn as nn
 from small_scale.models import vgg16, densenet40, googlenet, mobilenet_v1, mobilenet_v2
 from small_scale.models import resnet20, resnet32, resnet44, resnet56, resnet110
-from utils.data import load_cifar10
+from utils.data import load_cifar100
 from utils.calculate import AverageMeter, accuracy
 from datetime import datetime
 import logging
 
-parser = argparse.ArgumentParser(description="Train Model on CIFAR-10 from Scratch")
+parser = argparse.ArgumentParser(description="Train Model on CIFAR-100 from Scratch")
 
 parser.add_argument("--arch", type=str, default="vgg16", help="model architecture")
-parser.add_argument("--pretrain-dir", type=str, default="./cifar10/pre-train/", help="pre-trained model saved directory")
-parser.add_argument("--dataset-dir", type=str, default="./cifar10/dataset/", help="dataset saved directory")
-parser.add_argument("--log-dir", type=str, default="./cifar10/log/pre-train/", help="log file saved directory")
+parser.add_argument("--pretrain-dir", type=str, default="./cifar100/pre-train/", help="pre-trained model saved directory")
+parser.add_argument("--dataset-dir", type=str, default="./cifar100/dataset/", help="dataset saved directory")
+parser.add_argument("--log-dir", type=str, default="./cifar100/log/pre-train/", help="log file saved directory")
 parser.add_argument("--epochs", type=int, default=200, help="number of training epochs")
 parser.add_argument("--batch-size", type=int, default=256, help="batch size")
 parser.add_argument("--learning-rate", type=float, default=0.1, help="initial learning rate")
@@ -76,7 +76,7 @@ def main():
     logger.addHandler(fh)
     logger.addHandler(sh)
     
-    logger.info(f"author: jiang li - task: train {args.arch} on cifar10 from scratch")
+    logger.info(f"author: jiang li - task: train {args.arch} on cifar100 from scratch")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => printing arguments settings")
     args_info = str(args).replace(" ", "\n  ").replace("(", "(\n  ").replace(")", "\n)")
     logger.info(f"{args_info}")
@@ -90,9 +90,9 @@ def main():
     logger.info(f"{'device':<6} version: {device_prop.name} ({device_prop.total_memory/(1024**3):.2f} GB)")
     
     # load dataset and create model
-    num_classes = 10
+    num_classes = 100
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{args.dataset_dir}'")
-    train_loader, val_loader = load_cifar10(args.dataset_dir, batch_size=args.batch_size)
+    train_loader, val_loader = load_cifar100(args.dataset_dir, batch_size=args.batch_size)
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => creating model '{args.arch}'")
     model = eval(args.arch)(num_classes=num_classes).to(device)
     logger.info(str(model))

@@ -3,11 +3,10 @@ import argparse
 import platform
 import torch
 import torch.nn as nn
-from cifar10.models import vgg16, densenet40, googlenet, mobilenet_v1, mobilenet_v2
-from cifar10.models import resnet20, resnet32, resnet44, resnet56, resnet110
-from imagenet.models import vgg16_bn, vgg19_bn, resnet50
-from cifar10.data import load_cifar10
-from imagenet.data import load_imagenet
+from small_scale.models import vgg16, densenet40, googlenet, mobilenet_v1, mobilenet_v2
+from small_scale.models import resnet20, resnet32, resnet44, resnet56, resnet110
+from large_scale.models import vgg16_bn, vgg19_bn, resnet50
+from utils.data import load_cifar10, load_cifar100, load_imagenet
 from utils.algorithm import FilterSelection
 from datetime import datetime
 import json
@@ -16,6 +15,7 @@ import logging
 parser = argparse.ArgumentParser(description="Generate Pruning Information")
 
 parser.add_argument("--arch", type=str, default="vgg16", help="model architecture")
+parser.add_argument("--dataset", type=str, default="cifar10", help="dataset")
 parser.add_argument("--pretrain-dir", type=str, default="./cifar10/pre-train/", help="pre-trained model saved directory")
 parser.add_argument("--dataset-dir", type=str, default="./cifar10/dataset/", help="dataset saved directory")
 parser.add_argument("--saved-dir", type=str, default="./cifar10/prune-info/", help="pruning information saved directory")
@@ -73,7 +73,14 @@ def main():
     
     # create model
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => creating model '{args.arch}'")
-    model = eval(args.arch)().to(device)
+    num_classes = None
+    if args.dataset == "cifar10":
+        num_classes = 10
+    elif args.dataset == "cifar100":
+        num_classes = 100
+    elif args.dataset == "imagenet":
+        num_classes = 1000
+    model = eval(args.arch)(num_classes=num_classes).to(device)
     logger.info(str(model))
     
     # load weights and dataset
@@ -82,8 +89,7 @@ def main():
     state_dict = torch.load(pretrain_weights_path, map_location=device)
     model.load_state_dict(state_dict)
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{args.dataset_dir}'")
-    load_dataset = load_cifar10 if args.arch not in ["vgg16_bn", "vgg19_bn", "resnet50"] else load_imagenet
-    train_loader, val_loader = load_dataset(args.dataset_dir, batch_size=256)
+    train_loader, val_loader = eval("load_"+args.dataset)(args.dataset_dir, batch_size=256)
     
     # inference to get output feature maps
     conv_layers, conv_weights = [], []
@@ -131,8 +137,8 @@ def main():
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => selecting redundant filters")
     prune_info = dict()
     for conv_layer, feature_blob, weight in zip(final_conv_layers, final_feature_blobs, final_conv_weights):
-        filter_selection = FilterSelection(feature_blob=feature_blob, weight=weight, threshold=args.threshold)
         beg_time = datetime.now()
+        filter_selection = FilterSelection(feature_blob=feature_blob, weight=weight.cpu().numpy(), threshold=args.threshold)
         saved_filters = filter_selection.get_saved_filters()
         end_time = datetime.now()
         mask_num = weight.shape[0] - len(saved_filters)
