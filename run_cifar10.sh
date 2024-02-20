@@ -21,12 +21,12 @@ do
 			;;
 		*)
 	esac
+	pretrain_path="./cifar10/pre-train/"$arch"-weights.pth"
+	if [ ! -f "$pretrain_path" ]; then
+		python train_cifar10.py --arch $arch
+	fi
 	for threshold in ${thresholds[@]} 
 	do
-		pretrain_path="./cifar10/pre-train/"$arch"-weights.pth"
-		if [ ! -f "$pretrain_path" ]; then
-			python train_cifar10.py --arch $arch
-		fi
 		prune_info_path="./cifar10/prune-info/"$arch"-"$threshold".json"
 		if [ ! -f "$prune_info_path" ]; then
 			python generate_prune_info.py --arch $arch --threshold $threshold

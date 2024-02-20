@@ -20,7 +20,7 @@ do
 	do
 		prune_info_path="./imagenet/prune-info/"$arch"-"$threshold".json"
 		if [ ! -f "$prune_info_path" ]; then
-			python generate_prune_info.py --arch $arch --pretrain-dir $pretrain_dir --dataset-dir $dataset_dir --saved-dir $prune_info_saved_dir --log-dir $prune_info_log_dir --threshold $threshold
+			python generate_prune_info.py --arch $arch --dataset imagenet --pretrain-dir $pretrain_dir --dataset-dir $dataset_dir --saved-dir $prune_info_saved_dir --log-dir $prune_info_log_dir --threshold $threshold
 		fi
 		python prune_imagenet.py --arch $arch --threshold $threshold
 	done
