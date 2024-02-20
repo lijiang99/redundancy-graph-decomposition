@@ -2,8 +2,11 @@
 archs=("vgg16" "resnet20" "resnet32" "resnet44" "resnet56" "resnet110" "densenet40" "googlenet" "mobilenet_v1" "mobilenet_v2")
 pretrain_dir="./cifar100/pre-train/"
 dataset_dir="./cifar100/dataset/"
+pretrain_log_dir="./cifar100/log/pre-train/"
 prune_info_saved_dir="./cifar100/prune-info/"
 prune_info_log_dir="./cifar100/log/generate_prune_info/"
+fine_tune_saved_dir="./cifar100/fine-tune/"
+fine_tune_log_dir="./cifar100/log/fine-tune/"
 
 for arch in ${archs[@]}
 do
@@ -27,7 +30,7 @@ do
 	esac
 	pretrain_path="./cifar100/pre-train/"$arch"-weights.pth"
 	if [ ! -f "$pretrain_path" ]; then
-		python train_cifar.py --arch $arch --dataset cifar100
+		python train_cifar.py --arch $arch --dataset cifar100 --pretrain-dir $pretrain_dir --dataset-dir $dataset_dir --log-dir $pretrain_log_dir
 	fi
 	for threshold in ${thresholds[@]} 
 	do
@@ -35,6 +38,6 @@ do
 		if [ ! -f "$prune_info_path" ]; then
 			python generate_prune_info.py --arch $arch --dataset cifar100 --pretrain-dir $pretrain_dir --dataset-dir $dataset_dir --saved-dir $prune_info_saved_dir --log-dir $prune_info_log_dir --threshold $threshold
 		fi
-		python prune_cifar.py --arch $arch --dataset cifar100 --threshold $threshold
+		python prune_cifar.py --arch $arch --dataset cifar100 --pretrain-dir $pretrain_dir --dataset-dir $dataset_dir --pruneinfo-dir $prune_info_saved_dir --saved-dir $fine_tune_saved_dir --log-dir $fine_tune_log_dir --threshold $threshold
 	done
 done
