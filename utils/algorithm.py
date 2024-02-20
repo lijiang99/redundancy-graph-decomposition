@@ -1,7 +1,5 @@
-import torch
 import numpy as np
 from scipy import fftpack
-import pandas as pd
 import igraph
 
 class FilterSelection(object):
@@ -11,7 +9,7 @@ class FilterSelection(object):
         self._feature_blob_num = feature_blob.shape[0]
         self._filters_num = weight.shape[0]
         # calculate the l1-norm of each filter
-        l1_norms = torch.linalg.norm(weight.reshape((weight.shape[0], -1)), dim=-1, ord=1)
+        l1_norms = np.linalg.norm(weight.reshape((weight.shape[0], -1)), axis=-1, ord=1)
         self._filters_l1_norms = dict(enumerate(l1_norms))
         self._threshold = threshold
         self._graph = None
@@ -25,30 +23,28 @@ class FilterSelection(object):
     
     def get_similarity(self):
         """calculate the average similarity between the feature maps"""
-        result = {"index1": [], "index2": [], "similarity": []}
-        for i in range(self._feature_blob_num):
-            features = self._feature_blob[i,:,:,:]
-            for j in range(self._filters_num):
-                feature1 = features[j,:,:]
-                for k in range(j+1, self._filters_num):
-                    feature2, hamming_distance, similarity = features[k,:,:], None, None
-                    hamming_distance = np.sum(self._pHash(feature1) ^ self._pHash(feature2))
-                    if feature2.shape[0] < 8:
-                        similarity = 1 - hamming_distance * 1.0 / (feature2.shape[0] ** 2)
-                    if feature2.shape[0] >= 8:
-                        similarity = 1 - hamming_distance * 1.0 / 64
-                    result["index1"].append(j)
-                    result["index2"].append(k)
-                    result["similarity"].append(similarity)
-        return pd.DataFrame(result).groupby(["index1", "index2"]).mean().reset_index()
+        k = self._feature_blob.shape[-1] if self._feature_blob.shape[-1] < 8 else 8
+        pHashs = np.zeros([self._feature_blob_num, self._filters_num, k, k]).astype(int)
+        similaritys = np.zeros([self._filters_num, self._filters_num])
+        # calculate the hash encoding of all feature maps
+        for t in range(self._feature_blob_num):
+            for i in range(self._filters_num):
+                pHashs[t, i, :, :] = self._pHash(self._feature_blob[t, i, :, :])
+        # calculate the average similarity for the specified sample size
+        for i in range(self._filters_num):
+            for j in range(i+1, self._filters_num):
+                hamming_distance = 0
+                for t in range(self._feature_blob_num):
+                    hamming_distance += np.sum(pHashs[t, i, :, :] ^ pHashs[t, j, :, :])
+                similaritys[i][j] = 1 - (hamming_distance * 1.0) / (k * k * self._feature_blob_num)
+        return similaritys
     
     def _create_graph(self):
         """create a graph based on a specified threshold"""
-        df = self.get_similarity()
-        df = df[df["similarity"] >= self._threshold]
+        similaritys = self.get_similarity()
         self._graph = igraph.Graph()
         self._graph.add_vertices([i for i in range(self._filters_num)])
-        self._graph.add_edges([(i, j) for i, j in zip(df["index1"], df["index2"])])
+        self._graph.add_edges(np.argwhere(similaritys >= self._threshold))
         self._graph.vs["label"] = [i for i in range(self._filters_num)]
         return
     
