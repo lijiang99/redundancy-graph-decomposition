@@ -27,7 +27,7 @@ do
 	esac
 	pretrain_path="./cifar100/pre-train/"$arch"-weights.pth"
 	if [ ! -f "$pretrain_path" ]; then
-		python train_cifar100.py --arch $arch
+		python train_cifar.py --arch $arch --dataset cifar100
 	fi
 	for threshold in ${thresholds[@]} 
 	do
@@ -35,6 +35,6 @@ do
 		if [ ! -f "$prune_info_path" ]; then
 			python generate_prune_info.py --arch $arch --dataset cifar100 --pretrain-dir $pretrain_dir --dataset-dir $dataset_dir --saved-dir $prune_info_saved_dir --log-dir $prune_info_log_dir --threshold $threshold
 		fi
-		python prune_cifar100.py --arch $arch --threshold $threshold
+		python prune_cifar.py --arch $arch --dataset cifar100 --threshold $threshold
 	done
 done

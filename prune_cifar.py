@@ -7,21 +7,22 @@ from small_scale.models import vgg16, densenet40, googlenet, mobilenet_v1, mobil
 from small_scale.models import resnet20, resnet32, resnet44, resnet56, resnet110
 from small_scale.pruning import prune_vggnet_weights, prune_resnet_weights, prune_densenet_weights 
 from small_scale.pruning import prune_googlenet_weights, prune_mobilenet_v1_weights, prune_mobilenet_v2_weights
-from utils.data import load_cifar100
+from utils.data import load_cifar10, load_cifar100
 from utils.calculate import AverageMeter, accuracy
 from thop import profile
 from datetime import datetime
 import json
 import logging
 
-parser = argparse.ArgumentParser(description="Fine-tune Pruned Model on CIFAR-100")
+parser = argparse.ArgumentParser(description="Fine-tune Pruned Model on CIFAR-10/100")
 
 parser.add_argument("--arch", type=str, default="vgg16", help="model architecture")
-parser.add_argument("--pretrain-dir", type=str, default="./cifar100/pre-train/", help="pre-trained model saved directory")
-parser.add_argument("--dataset-dir", type=str, default="./cifar100/dataset/", help="dataset saved directory")
-parser.add_argument("--pruneinfo-dir", type=str, default="./cifar100/prune-info/", help="pruning information saved directory")
-parser.add_argument("--saved-dir", type=str, default="./cifar100/fine-tune/", help="pruned model saved directory")
-parser.add_argument("--log-dir", type=str, default="./cifar100/log/fine-tune/", help="log file saved directory")
+parser.add_argument("--dataset", type=str, default="cifar10", help="dataset")
+parser.add_argument("--pretrain-dir", type=str, default="./cifar10/pre-train/", help="pre-trained model saved directory")
+parser.add_argument("--dataset-dir", type=str, default="./cifar10/dataset/", help="dataset saved directory")
+parser.add_argument("--pruneinfo-dir", type=str, default="./cifar10/prune-info/", help="pruning information saved directory")
+parser.add_argument("--saved-dir", type=str, default="./cifar10/fine-tune/", help="pruned model saved directory")
+parser.add_argument("--log-dir", type=str, default="./cifar10/log/fine-tune/", help="log file saved directory")
 parser.add_argument("--threshold", type=float, default=0.7, help="similarity threshold")
 parser.add_argument("--epochs", type=int, default=70, help="number of fine-tuning epochs")
 parser.add_argument("--batch-size", type=int, default=256, help="batch size")
@@ -84,7 +85,7 @@ def main():
     logger.addHandler(fh)
     logger.addHandler(sh)
     
-    logger.info(f"author: jiang li - task: fine-tune pruned {args.arch} (threshold={args.threshold}) on cifar100")
+    logger.info(f"author: jiang li - task: fine-tune pruned {args.arch} (threshold={args.threshold}) on {args.dataset}")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => printing arguments settings")
     args_info = str(args).replace(" ", "\n  ").replace("(", "(\n  ").replace(")", "\n)")
     logger.info(f"{args_info}")
@@ -98,15 +99,15 @@ def main():
     logger.info(f"{'device':<6} version: {device_prop.name} ({device_prop.total_memory/(1024**3):.2f} GB)")
     
     # load pre-trained weights and model
-    num_classes = 100
+    num_classes = 10 if args.dataset == "cifar10" else 100
     pretrain_weights_path = os.path.join(args.pretrain_dir, f"{args.arch}-weights.pth")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading weights from '{pretrain_weights_path}'")
     origin_model = eval(args.arch)(num_classes=num_classes).to(device)
     origin_state_dict = torch.load(pretrain_weights_path, map_location=device)
     origin_model.load_state_dict(origin_state_dict)
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{args.dataset_dir}'")
-    train_loader, val_loader = load_cifar100(args.dataset_dir, batch_size=args.batch_size)
-
+    train_loader, val_loader = eval("load_"+args.dataset)(args.dataset_dir, batch_size=args.batch_size)
+    
     # load pruning information
     prune_info_path = os.path.join(args.pruneinfo_dir, f"{pruned_model_str}.json")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading pruning information from '{prune_info_path}'")
@@ -164,7 +165,7 @@ def main():
                                 momentum=args.momentum, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=0.1)
     criterion = nn.CrossEntropyLoss().to(device)
-
+    
     # set the save path of the pruned model
     if not os.path.isdir(args.saved_dir):
         os.makedirs(args.saved_dir)
