@@ -91,7 +91,7 @@ def main():
     # load dataset and create model
     num_classes = 10 if args.dataset == "cifar10" else 100
     dataset_dir = os.path.join(args.dataset, "dataset")
-    if not dataset_dir:
+    if not os.path.isdir(dataset_dir):
         os.makedirs(dataset_dir)
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{dataset_dir}'")
     train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=args.batch_size)
