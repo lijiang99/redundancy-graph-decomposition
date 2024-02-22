@@ -14,9 +14,6 @@ parser = argparse.ArgumentParser(description="Train Model on CIFAR-10/100 from S
 
 parser.add_argument("--arch", type=str, default="vgg16", help="model architecture")
 parser.add_argument("--dataset", type=str, default="cifar10", help="dataset")
-parser.add_argument("--pretrain-dir", type=str, default="./cifar10/pre-train/", help="pre-trained model saved directory")
-parser.add_argument("--dataset-dir", type=str, default="./cifar10/dataset/", help="dataset saved directory")
-parser.add_argument("--log-dir", type=str, default="./cifar10/log/pre-train/", help="log file saved directory")
 parser.add_argument("--epochs", type=int, default=200, help="number of training epochs")
 parser.add_argument("--batch-size", type=int, default=256, help="batch size")
 parser.add_argument("--learning-rate", type=float, default=0.1, help="initial learning rate")
@@ -64,9 +61,10 @@ def main():
     args = parser.parse_args()
     
     # set for log file
-    if not os.path.isdir(args.log_dir):
-        os.makedirs(args.log_dir)
-    log_path = os.path.join(args.log_dir, f"{args.arch}.log")
+    log_dir = os.path.join(args.dataset, "log", "pre-train")
+    if not os.path.isdir(log_dir):
+        os.makedirs(log_dir)
+    log_path = os.path.join(log_dir, f"{args.arch}.log")
     if os.path.isfile(log_path):
         os.remove(log_path)
     
@@ -92,8 +90,11 @@ def main():
     
     # load dataset and create model
     num_classes = 10 if args.dataset == "cifar10" else 100
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{args.dataset_dir}'")
-    train_loader, val_loader = eval("load_"+args.dataset)(args.dataset_dir, batch_size=args.batch_size)
+    dataset_dir = os.path.join(args.dataset, "dataset")
+    if not dataset_dir:
+        os.makedirs(dataset_dir)
+    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{dataset_dir}'")
+    train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=args.batch_size)
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => creating model '{args.arch}'")
     model = eval(args.arch)(num_classes=num_classes).to(device)
     logger.info(str(model))
@@ -105,9 +106,10 @@ def main():
     criterion = nn.CrossEntropyLoss().to(device)
     
     # set the save path of the model
-    if not os.path.isdir(args.pretrain_dir):
-        os.makedirs(args.pretrain_dir)
-    save_path = os.path.join(args.pretrain_dir, f"{args.arch}-weights.pth")
+    pretrain_dir = os.path.join(args.dataset, "pre-train")
+    if not os.path.isdir(pretrain_dir):
+        os.makedirs(pretrain_dir)
+    save_path = os.path.join(pretrain_dir, f"{args.arch}-weights.pth")
     
     # start training
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => training model '{args.arch}'")

@@ -16,10 +16,6 @@ parser = argparse.ArgumentParser(description="Generate Pruning Information")
 
 parser.add_argument("--arch", type=str, default="vgg16", help="model architecture")
 parser.add_argument("--dataset", type=str, default="cifar10", help="dataset")
-parser.add_argument("--pretrain-dir", type=str, default="./cifar10/pre-train/", help="pre-trained model saved directory")
-parser.add_argument("--dataset-dir", type=str, default="./cifar10/dataset/", help="dataset saved directory")
-parser.add_argument("--saved-dir", type=str, default="./cifar10/prune-info/", help="pruning information saved directory")
-parser.add_argument("--log-dir", type=str, default="./cifar10/log/generate-prune-info/", help="log file saved directory")
 parser.add_argument("--mini-batch", type=int, default=100, help="number of inputs to calculate average similarity")
 parser.add_argument("--threshold", type=float, default=0.7, help="similarity threshold")
 
@@ -45,9 +41,10 @@ def main():
     args = parser.parse_args()
     
     # set for log file
-    if not os.path.isdir(args.log_dir):
-        os.makedirs(args.log_dir)
-    log_path = os.path.join(args.log_dir, f"{args.arch}-{args.threshold}.log")
+    log_dir = os.path.join(args.dataset, "log", "generate-prune-info")
+    if not os.path.isdir(log_dir):
+        os.makedirs(log_dir)
+    log_path = os.path.join(log_dir, f"{args.arch}-{args.threshold}.log")
     if os.path.isfile(log_path):
         os.remove(log_path)
     
@@ -84,12 +81,13 @@ def main():
     logger.info(str(model))
     
     # load weights and dataset
-    pretrain_weights_path = os.path.join(args.pretrain_dir, f"{args.arch}-weights.pth")
+    pretrain_weights_path = os.path.join(args.dataset, "pre-train", f"{args.arch}-weights.pth")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading weights from '{pretrain_weights_path}'")
     state_dict = torch.load(pretrain_weights_path, map_location=device)
     model.load_state_dict(state_dict)
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{args.dataset_dir}'")
-    train_loader, val_loader = eval("load_"+args.dataset)(args.dataset_dir, batch_size=256)
+    dataset_dir = os.path.join(args.dataset, "dataset")
+    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{dataset_dir}'")
+    train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=256)
     
     # inference to get output feature maps
     conv_layers, conv_weights = [], []
@@ -147,10 +145,12 @@ def main():
         logger.info(f"consume {consume_time}, remove {mask_num:0>4}/{weight.shape[0]:0>4} filters from '{conv_layer}'")
     
     # save information of pruning to json file
-    save_path = os.path.join(args.saved_dir, f"{args.arch}-{args.threshold}.json")
+    save_dir = os.path.join(args.dataset, "prune-info")
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
+    save_path = os.path.join(save_dir, f"{args.arch}-{args.threshold}.json")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => saving pruning information to '{save_path}'")
-    if not os.path.isdir(args.saved_dir):
-        os.makedirs(args.saved_dir)
+    
     with open(save_path, "w") as f:
         json.dump(prune_info, f)
     

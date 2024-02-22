@@ -15,11 +15,7 @@ import logging
 parser = argparse.ArgumentParser(description="Fine-tune Pruned Model on ImageNet")
 
 parser.add_argument("--arch", type=str, default="resnet50", help="model architecture")
-parser.add_argument("--pretrain-dir", type=str, default="./imagenet/pre-train/", help="pre-trained model saved directory")
-parser.add_argument("--dataset-dir", type=str, default="./imagenet/dataset/", help="dataset saved directory")
-parser.add_argument("--pruneinfo-dir", type=str, default="./imagenet/prune-info/", help="pruning information saved directory")
-parser.add_argument("--saved-dir", type=str, default="./imagenet/fine-tune/", help="pruned model saved directory")
-parser.add_argument("--log-dir", type=str, default="./imagenet/log/fine-tune/", help="log file saved directory")
+parser.add_argument("--dataset", type=str, default="imagenet", help="dataset")
 parser.add_argument("--threshold", type=float, default=0.7, help="similarity threshold")
 parser.add_argument("--epochs", type=int, default=50, help="number of fine-tuning epochs")
 parser.add_argument("--batch-size", type=int, default=256, help="batch size")
@@ -81,9 +77,10 @@ def main():
     pruned_model_str = f"{args.arch}-{args.threshold}"
     
     # set for log file
-    if not os.path.isdir(args.log_dir):
-        os.makedirs(args.log_dir)
-    log_path = os.path.join(args.log_dir, f"{pruned_model_str}.log")
+    log_dir = os.path.join(args.dataset, "log", "fine-tune")
+    if not os.path.isdir(log_dir):
+        os.makedirs(log_dir)
+    log_path = os.path.join(log_dir, f"{pruned_model_str}.log")
     if os.path.isfile(log_path):
         os.remove(log_path)
     
@@ -109,16 +106,17 @@ def main():
     
     # load pre-trained weights and model
     num_classes = 1000
-    pretrain_weights_path = os.path.join(args.pretrain_dir, f"{args.arch}-weights.pth")
+    pretrain_weights_path = os.path.join(args.dataset, "pre-train", f"{args.arch}-weights.pth")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading weights from '{pretrain_weights_path}'")
     origin_model = eval(args.arch)(num_classes=num_classes).to(device)
     origin_state_dict = torch.load(pretrain_weights_path, map_location=device)
     origin_model.load_state_dict(origin_state_dict)
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{args.dataset_dir}'")
-    train_loader, val_loader = load_imagenet(args.dataset_dir, batch_size=args.batch_size)
+    dataset_dir = os.path.join(args.dataset, "dataset")
+    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{dataset_dir}'")
+    train_loader, val_loader = load_imagenet(dataset_dir, batch_size=args.batch_size)
     
     # load pruning information
-    prune_info_path = os.path.join(args.pruneinfo_dir, f"{pruned_model_str}.json")
+    prune_info_path = os.path.join(args.dataset, "prune-info", f"{pruned_model_str}.json")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading pruning information from '{prune_info_path}'")
     prune_info = None
     with open(prune_info_path, "r") as f:
@@ -160,9 +158,10 @@ def main():
     criterion = nn.CrossEntropyLoss().to(device)
     
     # set the save path of the pruned model
-    if not os.path.isdir(args.saved_dir):
-        os.makedirs(args.saved_dir)
-    save_path = os.path.join(args.saved_dir, f"{pruned_model_str}-weights.pth")
+    fine_tune_dir = os.path.join(args.dataset, "fine-tune")
+    if not os.path.isdir(fine_tune_dir):
+        os.makedirs(fine_tune_dir)
+    save_path = os.path.join(fine_tune_dir, f"{pruned_model_str}-weights.pth")
     
     # start fine-tuning
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => fine-tuning pruned model '{pruned_model_str}'")
