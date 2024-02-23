@@ -18,12 +18,12 @@ parser.add_argument("--root", type=str, default="./", help="project root directo
 parser.add_argument("--arch", type=str, default="vgg19_bn", help="model architecture")
 parser.add_argument("--dataset", type=str, default="cub200", help="dataset")
 parser.add_argument("--threshold", type=float, default=0.85, help="similarity threshold")
-parser.add_argument("--epochs", type=int, default=100, help="number of fine-tuning epochs")
+parser.add_argument("--epochs", type=int, default=50, help="number of fine-tuning epochs")
 parser.add_argument("--batch-size", type=int, default=32, help="batch size")
 parser.add_argument("--learning-rate", type=float, default=0.001, help="initial learning rate")
 parser.add_argument("--momentum", type=float, default=0.9, help="momentum")
 parser.add_argument("--weight-decay", type=float, default=1e-5, help="weight decay")
-parser.add_argument("--step-size", type=int, default=50, help="learning rate decay step size")
+parser.add_argument("--step-size", type=int, default=25, help="learning rate decay step size")
 
 def train(train_loader, model, criterion, optimizer, device):
     losses = AverageMeter("loss")
@@ -157,7 +157,7 @@ def main():
         end_time = datetime.now()
         lr = optimizer.param_groups[0]["lr"]
         consume_time = int((end_time-beg_time).total_seconds())
-        train_message = f"Epoch[{epoch+1:0>3}/{args.epochs}] - time: {consume_time}s - lr: {lr} - loss: {train_loss:.2f} - prec@1: {train_acc:.2f}"
+        train_message = f"Epoch[{epoch+1:0>2}/{args.epochs}] - time: {consume_time}s - lr: {lr} - loss: {train_loss:.2f} - prec@1: {train_acc:.2f}"
         logger.info(train_message)
         valid_loss, valid_acc = validate(val_loader, pruned_model, criterion, device)
         if valid_acc > best_acc:
