@@ -6,7 +6,7 @@ import torch.nn as nn
 from small_scale.models import vgg16, densenet40, googlenet, mobilenet_v1, mobilenet_v2
 from small_scale.models import resnet20, resnet32, resnet44, resnet56, resnet110
 from large_scale.models import vgg16_bn, vgg19_bn, resnet50
-from utils.data import load_cifar10, load_cifar100, load_imagenet
+from utils.data import load_cifar10, load_cifar100, load_cub200, load_imagenet
 from utils.algorithm import FilterSelection
 from datetime import datetime
 import json
@@ -75,6 +75,8 @@ def main():
         num_classes = 10
     elif args.dataset == "cifar100":
         num_classes = 100
+    elif args.dataset == "cub200":
+        num_classes = 200
     elif args.dataset == "imagenet":
         num_classes = 1000
     model = eval(args.arch)(num_classes=num_classes).to(device)
