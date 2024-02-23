@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser(description="Generate Pruning Information")
 parser.add_argument("--root", type=str, default="./", help="project root directory")
 parser.add_argument("--arch", type=str, default="vgg16", help="model architecture")
 parser.add_argument("--dataset", type=str, default="cifar10", help="dataset")
+parser.add_argument("--batch-size", type=int, default=256, help="batch size")
 parser.add_argument("--mini-batch", type=int, default=100, help="number of inputs to calculate average similarity")
 parser.add_argument("--threshold", type=float, default=0.7, help="similarity threshold")
 
@@ -90,7 +91,7 @@ def main():
     model.load_state_dict(state_dict)
     dataset_dir = os.path.join(args.root, args.dataset, "dataset")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{dataset_dir}'")
-    train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=256)
+    train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=args.batch_size)
     
     # inference to get output feature maps
     conv_layers, conv_weights = [], []
