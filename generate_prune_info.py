@@ -14,6 +14,7 @@ import logging
 
 parser = argparse.ArgumentParser(description="Generate Pruning Information")
 
+parser.add_argument("--root", type=str, default="./", help="project root directory")
 parser.add_argument("--arch", type=str, default="vgg16", help="model architecture")
 parser.add_argument("--dataset", type=str, default="cifar10", help="dataset")
 parser.add_argument("--mini-batch", type=int, default=100, help="number of inputs to calculate average similarity")
@@ -41,7 +42,7 @@ def main():
     args = parser.parse_args()
     
     # set for log file
-    log_dir = os.path.join(args.dataset, "log", "generate-prune-info")
+    log_dir = os.path.join(args.root, args.dataset, "log", "generate-prune-info")
     if not os.path.isdir(log_dir):
         os.makedirs(log_dir)
     log_path = os.path.join(log_dir, f"{args.arch}-{args.threshold}.log")
@@ -83,11 +84,11 @@ def main():
     logger.info(str(model))
     
     # load weights and dataset
-    pretrain_weights_path = os.path.join(args.dataset, "pre-train", f"{args.arch}-weights.pth")
+    pretrain_weights_path = os.path.join(args.root, args.dataset, "pre-train", f"{args.arch}-weights.pth")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading weights from '{pretrain_weights_path}'")
     state_dict = torch.load(pretrain_weights_path, map_location=device)
     model.load_state_dict(state_dict)
-    dataset_dir = os.path.join(args.dataset, "dataset")
+    dataset_dir = os.path.join(args.root, args.dataset, "dataset")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{dataset_dir}'")
     train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=256)
     
@@ -147,7 +148,7 @@ def main():
         logger.info(f"consume {consume_time}, remove {mask_num:0>4}/{weight.shape[0]:0>4} filters from '{conv_layer}'")
     
     # save information of pruning to json file
-    save_dir = os.path.join(args.dataset, "prune-info")
+    save_dir = os.path.join(args.root, args.dataset, "prune-info")
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
     save_path = os.path.join(save_dir, f"{args.arch}-{args.threshold}.json")

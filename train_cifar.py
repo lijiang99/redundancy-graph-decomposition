@@ -12,6 +12,7 @@ import logging
 
 parser = argparse.ArgumentParser(description="Train Model on CIFAR-10/100 from Scratch")
 
+parser.add_argument("--root", type=str, default="./", help="project root directory")
 parser.add_argument("--arch", type=str, default="vgg16", help="model architecture")
 parser.add_argument("--dataset", type=str, default="cifar10", help="dataset")
 parser.add_argument("--epochs", type=int, default=200, help="number of training epochs")
@@ -61,7 +62,7 @@ def main():
     args = parser.parse_args()
     
     # set for log file
-    log_dir = os.path.join(args.dataset, "log", "pre-train")
+    log_dir = os.path.join(args.root, args.dataset, "log", "pre-train")
     if not os.path.isdir(log_dir):
         os.makedirs(log_dir)
     log_path = os.path.join(log_dir, f"{args.arch}.log")
@@ -90,7 +91,7 @@ def main():
     
     # load dataset and create model
     num_classes = 10 if args.dataset == "cifar10" else 100
-    dataset_dir = os.path.join(args.dataset, "dataset")
+    dataset_dir = os.path.join(args.root, args.dataset, "dataset")
     if not os.path.isdir(dataset_dir):
         os.makedirs(dataset_dir)
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{dataset_dir}'")
@@ -106,7 +107,7 @@ def main():
     criterion = nn.CrossEntropyLoss().to(device)
     
     # set the save path of the model
-    pretrain_dir = os.path.join(args.dataset, "pre-train")
+    pretrain_dir = os.path.join(args.root, args.dataset, "pre-train")
     if not os.path.isdir(pretrain_dir):
         os.makedirs(pretrain_dir)
     save_path = os.path.join(pretrain_dir, f"{args.arch}-weights.pth")

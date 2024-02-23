@@ -16,6 +16,7 @@ import logging
 
 parser = argparse.ArgumentParser(description="Fine-tune Pruned Model on CIFAR-10/100")
 
+parser.add_argument("--root", type=str, default="./", help="project root directory")
 parser.add_argument("--arch", type=str, default="vgg16", help="model architecture")
 parser.add_argument("--dataset", type=str, default="cifar10", help="dataset")
 parser.add_argument("--threshold", type=float, default=0.7, help="similarity threshold")
@@ -67,7 +68,7 @@ def main():
     pruned_model_str = f"{args.arch}-{args.threshold}"
     
     # set for log file
-    log_dir = os.path.join(args.dataset, "log", "fine-tune")
+    log_dir = os.path.join(args.root, args.dataset, "log", "fine-tune")
     if not os.path.isdir(log_dir):
         os.makedirs(log_dir)
     log_path = os.path.join(log_dir, f"{pruned_model_str}.log")
@@ -96,17 +97,17 @@ def main():
     
     # load pre-trained weights and model
     num_classes = 10 if args.dataset == "cifar10" else 100
-    pretrain_weights_path = os.path.join(args.dataset, "pre-train", f"{args.arch}-weights.pth")
+    pretrain_weights_path = os.path.join(args.root, args.dataset, "pre-train", f"{args.arch}-weights.pth")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading weights from '{pretrain_weights_path}'")
     origin_model = eval(args.arch)(num_classes=num_classes).to(device)
     origin_state_dict = torch.load(pretrain_weights_path, map_location=device)
     origin_model.load_state_dict(origin_state_dict)
-    dataset_dir = os.path.join(args.dataset, "dataset")
+    dataset_dir = os.path.join(args.root, args.dataset, "dataset")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{dataset_dir}'")
     train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=args.batch_size)
     
     # load pruning information
-    prune_info_path = os.path.join(args.dataset, "prune-info", f"{pruned_model_str}.json")
+    prune_info_path = os.path.join(args.root, args.dataset, "prune-info", f"{pruned_model_str}.json")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading pruning information from '{prune_info_path}'")
     prune_info = None
     with open(prune_info_path, "r") as f:
@@ -164,7 +165,7 @@ def main():
     criterion = nn.CrossEntropyLoss().to(device)
     
     # set the save path of the pruned model
-    fine_tune_dir = os.path.join(args.dataset, "fine-tune")
+    fine_tune_dir = os.path.join(args.root, args.dataset, "fine-tune")
     if not os.path.isdir(fine_tune_dir):
         os.makedirs(fine_tune_dir)
     save_path = os.path.join(fine_tune_dir, f"{pruned_model_str}-weights.pth")
