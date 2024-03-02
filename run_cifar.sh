@@ -26,7 +26,7 @@ do
 		esac
 		pretrain_path=$dataset"/pre-train/"$arch"-weights.pth"
 		if [ ! -f "$pretrain_path" ]; then
-			python train_cifar.py --arch $arch --dataset $dataset
+			python train.py --arch $arch --dataset $dataset
 		fi
 		for threshold in ${thresholds[@]} 
 		do

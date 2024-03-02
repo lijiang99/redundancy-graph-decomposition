@@ -3,23 +3,26 @@ import argparse
 import platform
 import torch
 import torch.nn as nn
+from small_scale.models import vgg16, densenet40, googlenet, mobilenet_v1, mobilenet_v2
+from small_scale.models import resnet20, resnet32, resnet44, resnet56, resnet110
 from torchvision.models import vgg16_bn, vgg19_bn
-from utils.data import load_cub200
+from utils.data import load_cifar10, load_cifar100, load_cub200
 from utils.calculate import AverageMeter, accuracy
 from datetime import datetime
 import logging
+import math
 
-parser = argparse.ArgumentParser(description="Train Model on CUB-200 from Scratch")
+parser = argparse.ArgumentParser(description="Train Model on CIFAR-10/100 or CUB-200 from Scratch")
 
 parser.add_argument("--root", type=str, default="./", help="project root directory")
-parser.add_argument("--arch", type=str, default="vgg19_bn", help="model architecture")
-parser.add_argument("--dataset", type=str, default="cub200", help="dataset")
-parser.add_argument("--epochs", type=int, default=50, help="number of training epochs")
-parser.add_argument("--batch-size", type=int, default=32, help="batch size")
-parser.add_argument("--learning-rate", type=float, default=0.01, help="initial learning rate")
+parser.add_argument("--arch", type=str, default="vgg16", help="model architecture")
+parser.add_argument("--dataset", type=str, default="cifar10", help="dataset")
+parser.add_argument("--epochs", type=int, default=200, help="number of training epochs")
+parser.add_argument("--batch-size", type=int, default=256, help="batch size")
+parser.add_argument("--learning-rate", type=float, default=0.1, help="initial learning rate")
 parser.add_argument("--momentum", type=float, default=0.9, help="momentum")
-parser.add_argument("--weight-decay", type=float, default=1e-5, help="weight decay")
-parser.add_argument("--step-size", type=int, default=25, help="learning rate decay step size")
+parser.add_argument("--weight-decay", type=float, default=5e-4, help="weight decay")
+parser.add_argument("--step-size", type=int, default=50, help="learning rate decay step size")
 
 def train(train_loader, model, criterion, optimizer, device):
     losses = AverageMeter("loss")
@@ -89,15 +92,18 @@ def main():
     logger.info(f"{'device':<6} version: {device_prop.name} ({device_prop.total_memory/(1024**3):.2f} GB)")
     
     # load dataset and create model
-    num_classes = 200
     dataset_dir = os.path.join(args.root, args.dataset, "dataset")
     if not os.path.isdir(dataset_dir):
         os.makedirs(dataset_dir)
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{dataset_dir}'")
     train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=args.batch_size)
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => creating model '{args.arch}'")
-    model = eval(args.arch)(pretrained=True).to(device)
-    model.classifier[-1] = nn.Linear(in_features=model.classifier[-1].in_features, out_features=num_classes).to(device)
+    model = None
+    if args.dataset == "cub200":
+        model = eval(args.arch)(pretrained=True).to(device)
+        model.classifier[-1] = nn.Linear(in_features=model.classifier[-1].in_features, out_features=200).to(device)
+    else:
+        model = eval(args.arch)(num_classes=(10 if args.dataset == "cifar10" else 100)).to(device)
     logger.info(str(model))
     
     # set hyperparameters
@@ -114,14 +120,14 @@ def main():
     
     # start training
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => training model '{args.arch}'")
-    best_acc = 0
+    best_acc, ndigits, width = 0, int(abs(math.log10(args.learning_rate))), int(math.log10(args.epochs)+1)
     for epoch in range(args.epochs):
         beg_time = datetime.now()
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, device)
         end_time = datetime.now()
-        lr = optimizer.param_groups[0]["lr"]
+        lr = round(optimizer.param_groups[0]["lr"], epoch//args.step_size+ndigits)
         consume_time = int((end_time-beg_time).total_seconds())
-        train_message = f"Epoch[{epoch+1:0>2}/{args.epochs}] - time: {consume_time}s - lr: {lr} - loss: {train_loss:.2f} - prec@1: {train_acc:.2f}"
+        train_message = f"Epoch[{epoch+1:0>width}/{args.epochs}] - time: {consume_time:0>2}s - lr: {lr} - loss: {train_loss:.2f} - prec@1: {train_acc:.2f}"
         logger.info(train_message)
         valid_loss, valid_acc = validate(val_loader, model, criterion, device)
         if valid_acc > best_acc:
