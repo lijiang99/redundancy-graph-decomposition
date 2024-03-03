@@ -6,7 +6,7 @@ import torch.nn as nn
 from large_scale.models import vgg16_bn, vgg19_bn
 from large_scale.pruning import prune_vggnet_weights
 from utils.data import load_cub200
-from utils.calculate import AverageMeter, accuracy
+from utils.calculate import train_on_others, validate_on_others
 from thop import profile
 from datetime import datetime
 import json
@@ -24,42 +24,6 @@ parser.add_argument("--learning-rate", type=float, default=0.001, help="initial 
 parser.add_argument("--momentum", type=float, default=0.9, help="momentum")
 parser.add_argument("--weight-decay", type=float, default=1e-5, help="weight decay")
 parser.add_argument("--step-size", type=int, default=25, help="learning rate decay step size")
-
-def train(train_loader, model, criterion, optimizer, device):
-    losses = AverageMeter("loss")
-    top1 = AverageMeter("acc@1")
-    
-    model.train()
-    for i, (images, target) in enumerate(train_loader):
-        images = images.to(device)
-        target = target.to(device)
-        logits = model(images)
-        loss = criterion(logits, target)
-        prec1 = accuracy(logits, target)[0]
-        losses.update(loss.item(), images.size(0))
-        top1.update(prec1.item(), images.size(0))
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-    
-    return losses.avg, top1.avg
-
-def validate(val_loader, model, criterion, device):
-    losses = AverageMeter("loss")
-    top1 = AverageMeter("acc@1")
-    
-    model.eval()
-    with torch.no_grad():
-        for i, (images, target) in enumerate(val_loader):
-            images = images.to(device)
-            target = target.to(device)
-            logits = model(images)
-            loss = criterion(logits, target)
-            prec1 = accuracy(logits, target)[0]
-            losses.update(loss.item(), images.size(0))
-            top1.update(prec1[0], images.size(0))
-    
-    return losses.avg, top1.avg
 
 def main():
     args = parser.parse_args()
@@ -153,13 +117,13 @@ def main():
     best_acc = 0
     for epoch in range(args.epochs):
         beg_time = datetime.now()
-        train_loss, train_acc = train(train_loader, pruned_model, criterion, optimizer, device)
+        train_loss, train_acc = train_on_others(train_loader, pruned_model, criterion, optimizer, device)
         end_time = datetime.now()
         lr = optimizer.param_groups[0]["lr"]
         consume_time = int((end_time-beg_time).total_seconds())
         train_message = f"Epoch[{epoch+1:0>2}/{args.epochs}] - time: {consume_time}s - lr: {lr} - loss: {train_loss:.2f} - prec@1: {train_acc:.2f}"
         logger.info(train_message)
-        valid_loss, valid_acc = validate(val_loader, pruned_model, criterion, device)
+        valid_loss, valid_acc = validate_on_others(val_loader, pruned_model, criterion, device)
         if valid_acc > best_acc:
             best_acc = valid_acc
             torch.save(pruned_model.state_dict(), save_path)
@@ -168,7 +132,7 @@ def main():
     
     # evaluate pruning effect
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => evaluating pruned model '{pruned_model_str}'")
-    origin_best_acc, pruned_best_acc = validate(val_loader, origin_model, criterion, device)[1], best_acc
+    origin_best_acc, pruned_best_acc = validate_on_others(val_loader, origin_model, criterion, device)[1], best_acc
     input_image_size = 448
     input_image = torch.randn(1, 3, input_image_size, input_image_size).to(device)
     origin_flops, origin_params = profile(origin_model, inputs=(input_image,))

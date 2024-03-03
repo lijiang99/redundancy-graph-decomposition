@@ -7,7 +7,7 @@ from small_scale.models import vgg16, densenet40, googlenet, mobilenet_v1, mobil
 from small_scale.models import resnet20, resnet32, resnet44, resnet56, resnet110
 from torchvision.models import vgg16_bn, vgg19_bn
 from utils.data import load_cifar10, load_cifar100, load_cub200
-from utils.calculate import AverageMeter, accuracy
+from utils.calculate import train_on_others, validate_on_others
 from datetime import datetime
 import logging
 import math
@@ -23,42 +23,6 @@ parser.add_argument("--learning-rate", type=float, default=0.1, help="initial le
 parser.add_argument("--momentum", type=float, default=0.9, help="momentum")
 parser.add_argument("--weight-decay", type=float, default=5e-4, help="weight decay")
 parser.add_argument("--step-size", type=int, default=50, help="learning rate decay step size")
-
-def train(train_loader, model, criterion, optimizer, device):
-    losses = AverageMeter("loss")
-    top1 = AverageMeter("acc@1")
-    
-    model.train()
-    for i, (images, target) in enumerate(train_loader):
-        images = images.to(device)
-        target = target.to(device)
-        logits = model(images)
-        loss = criterion(logits, target)
-        prec1 = accuracy(logits, target)[0]
-        losses.update(loss.item(), images.size(0))
-        top1.update(prec1.item(), images.size(0))
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-    
-    return losses.avg, top1.avg
-
-def validate(val_loader, model, criterion, device):
-    losses = AverageMeter("loss")
-    top1 = AverageMeter("acc@1")
-    
-    model.eval()
-    with torch.no_grad():
-        for i, (images, target) in enumerate(val_loader):
-            images = images.to(device)
-            target = target.to(device)
-            logits = model(images)
-            loss = criterion(logits, target)
-            prec1 = accuracy(logits, target)[0]
-            losses.update(loss.item(), images.size(0))
-            top1.update(prec1[0], images.size(0))
-    
-    return losses.avg, top1.avg
 
 def main():
     args = parser.parse_args()
@@ -123,13 +87,13 @@ def main():
     best_acc, ndigits, width = 0, int(abs(math.log10(args.learning_rate))), int(math.log10(args.epochs)+1)
     for epoch in range(args.epochs):
         beg_time = datetime.now()
-        train_loss, train_acc = train(train_loader, model, criterion, optimizer, device)
+        train_loss, train_acc = train_on_others(train_loader, model, criterion, optimizer, device)
         end_time = datetime.now()
         lr = round(optimizer.param_groups[0]["lr"], epoch//args.step_size+ndigits)
         consume_time = int((end_time-beg_time).total_seconds())
         train_message = f"Epoch[{epoch+1:0>width}/{args.epochs}] - time: {consume_time:0>2}s - lr: {lr} - loss: {train_loss:.2f} - prec@1: {train_acc:.2f}"
         logger.info(train_message)
-        valid_loss, valid_acc = validate(val_loader, model, criterion, device)
+        valid_loss, valid_acc = validate_on_others(val_loader, model, criterion, device)
         if valid_acc > best_acc:
             best_acc = valid_acc
             torch.save(model.state_dict(), save_path)

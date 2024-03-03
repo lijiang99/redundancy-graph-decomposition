@@ -83,8 +83,9 @@ def main():
     if args.dataset != "imagenet":
         pretrain_weights_path = os.path.join(args.root, args.dataset, "pre-train", f"{args.arch}-weights.pth")
         logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading weights from '{pretrain_weights_path}'")
-        state_dict = torch.load(pretrain_weights_path, map_location=device)
-        model.load_state_dict(state_dict)
+        model.load_state_dict(torch.load(pretrain_weights_path, map_location=device))
+    
+    state_dict = model.state_dict()
     dataset_dir = os.path.join(args.root, args.dataset, "dataset")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{dataset_dir}'")
     train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=args.batch_size)

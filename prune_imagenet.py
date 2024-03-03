@@ -7,7 +7,7 @@ import torchvision
 from large_scale.models import vgg16_bn, vgg19_bn, resnet50
 from large_scale.pruning import prune_vggnet_weights, prune_resnet_weights
 from utils.data import load_imagenet
-from utils.calculate import AverageMeter, accuracy
+from utils.calculate import train_on_imagenet, validate_on_imagenet
 from thop import profile
 from datetime import datetime
 import json
@@ -25,54 +25,6 @@ parser.add_argument("--learning-rate", type=float, default=0.01, help="initial l
 parser.add_argument("--momentum", type=float, default=0.9, help="momentum")
 parser.add_argument("--weight-decay", type=float, default=1e-4, help="weight decay")
 parser.add_argument("--step-size", type=int, default=20, help="learning rate decay step size")
-
-def train(train_loader, model, criterion, optimizer, device, epoch, total_epochs, logger):
-    losses = AverageMeter("loss")
-    top1 = AverageMeter("acc@1")
-    top5 = AverageMeter("acc@5")
-    lr = optimizer.param_groups[0]["lr"]
-    
-    model.train()
-    beg_time = datetime.now()
-    for i, (images, target) in enumerate(train_loader):
-        images = images.to(device, non_blocking=True)
-        target = target.to(device, non_blocking=True)
-        logits = model(images)
-        loss = criterion(logits, target)
-        prec1, prec5 = accuracy(logits, target, topk=(1, 5))
-        losses.update(loss.item(), images.size(0))
-        top1.update(prec1.item(), images.size(0))
-        top5.update(prec5.item(), images.size(0))
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        if (i+1) % (len(train_loader)//5) == 0:
-            consume_time = str(datetime.now()-beg_time).split('.')[0]
-            train_message = f"Epoch[{epoch+1:0>2}/{total_epochs}][{i+1}/{len(train_loader)}] - time: {consume_time} - lr: {lr} - loss: {losses.avg:.2f} - prec@1: {top1.avg:>5.2f} - prec@5: {top5.avg:>5.2f}"
-            logger.info(train_message)
-            beg_time = datetime.now()
-    
-    return losses.avg, top1.avg, top5.avg
-
-
-def validate(val_loader, model, criterion, device):
-    losses = AverageMeter("loss")
-    top1 = AverageMeter("acc@1")
-    top5 = AverageMeter("acc@5")
-    
-    model.eval()
-    with torch.no_grad():
-        for i, (images, target) in enumerate(val_loader):
-            images = images.to(device, non_blocking=True)
-            target = target.to(device, non_blocking=True)
-            logits = model(images)
-            loss = criterion(logits, target)
-            prec1, prec5 = accuracy(logits, target, topk=(1, 5))
-            losses.update(loss.item(), images.size(0))
-            top1.update(prec1[0], images.size(0))
-            top5.update(prec5[0], images.size(0))
-    
-    return losses.avg, top1.avg, top5.avg
 
 def main():
     args = parser.parse_args()
@@ -165,8 +117,8 @@ def main():
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => fine-tuning pruned model '{pruned_model_str}'")
     best_top1_acc, best_top5_acc = 0, 0
     for epoch in range(args.epochs):
-        train_loss, train_top1_acc, train_top5_acc = train(train_loader, pruned_model, criterion, optimizer, device, epoch, args.epochs, logger)
-        valid_loss, valid_top1_acc, valid_top5_acc = validate(val_loader, pruned_model, criterion, device)
+        train_loss, train_top1_acc, train_top5_acc = train_on_imagenet(train_loader, pruned_model, criterion, optimizer, device, epoch, args.epochs, logger)
+        valid_loss, valid_top1_acc, valid_top5_acc = validate_on_imagenet(val_loader, pruned_model, criterion, device)
         if valid_top1_acc > best_top1_acc:
             best_top1_acc = valid_top1_acc
             best_top5_acc = valid_top5_acc
@@ -176,7 +128,7 @@ def main():
     
     # evaluate pruning effect
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => evaluating pruned model '{pruned_model_str}'")
-    origin_top1_acc, origin_top5_acc = tuple(validate(val_loader, origin_model, criterion, device)[1:])
+    origin_top1_acc, origin_top5_acc = tuple(validate_on_imagenet(val_loader, origin_model, criterion, device)[1:])
     pruned_top1_acc, pruned_top5_acc = best_top1_acc, best_top5_acc
     input_image_size = 224
     input_image = torch.randn(1, 3, input_image_size, input_image_size).to(device)
