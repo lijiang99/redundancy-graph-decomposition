@@ -3,6 +3,7 @@ import argparse
 import platform
 import torch
 import torch.nn as nn
+import torchvision
 from small_scale.models import vgg16, densenet40, googlenet, mobilenet_v1, mobilenet_v2
 from small_scale.models import resnet20, resnet32, resnet44, resnet56, resnet110
 from large_scale.models import vgg16_bn, vgg19_bn, resnet50
@@ -72,23 +73,18 @@ def main():
     
     # create model
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => creating model '{args.arch}'")
-    num_classes = None
-    if args.dataset == "cifar10":
-        num_classes = 10
-    elif args.dataset == "cifar100":
-        num_classes = 100
-    elif args.dataset == "cub200":
-        num_classes = 200
-    elif args.dataset == "imagenet":
-        num_classes = 1000
-    model = eval(args.arch)(num_classes=num_classes).to(device)
+    if args.dataset == "imagenet":
+        model = eval(f"torchvision.models.{args.arch}")(pretrained=True).to(device)
+    else:
+        model = eval(args.arch)(num_classes=(10 if args.dataset == "cifar10" else (100 if args.dataset == "cifar100" else 200))).to(device)
     logger.info(str(model))
     
-    # load weights and dataset
-    pretrain_weights_path = os.path.join(args.root, args.dataset, "pre-train", f"{args.arch}-weights.pth")
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading weights from '{pretrain_weights_path}'")
-    state_dict = torch.load(pretrain_weights_path, map_location=device)
-    model.load_state_dict(state_dict)
+    # load pre-trained weights and dataset
+    if args.dataset != "imagenet":
+        pretrain_weights_path = os.path.join(args.root, args.dataset, "pre-train", f"{args.arch}-weights.pth")
+        logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading weights from '{pretrain_weights_path}'")
+        state_dict = torch.load(pretrain_weights_path, map_location=device)
+        model.load_state_dict(state_dict)
     dataset_dir = os.path.join(args.root, args.dataset, "dataset")
     logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{dataset_dir}'")
     train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=args.batch_size)
