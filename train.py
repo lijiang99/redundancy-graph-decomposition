@@ -91,7 +91,7 @@ def main():
         end_time = datetime.now()
         lr = round(optimizer.param_groups[0]["lr"], epoch//args.step_size+ndigits)
         consume_time = int((end_time-beg_time).total_seconds())
-        train_message = f"Epoch[{epoch+1:0>width}/{args.epochs}] - time: {consume_time:0>2}s - lr: {lr} - loss: {train_loss:.2f} - prec@1: {train_acc:.2f}"
+        train_message = f"Epoch[{epoch+1:0>{width}}/{args.epochs}] - time: {consume_time:0>2}s - lr: {lr} - loss: {train_loss:.2f} - prec@1: {train_acc:.2f}"
         logger.info(train_message)
         valid_loss, valid_acc = validate_on_others(val_loader, model, criterion, device)
         if valid_acc > best_acc:
