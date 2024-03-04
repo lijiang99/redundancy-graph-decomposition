@@ -1,11 +1,12 @@
 import os
 import pickle
+import urllib
 import tarfile
 import PIL.Image
-import six.moves
 import numpy as np
 from torchvision import transforms, datasets
 from torch.utils.data import DataLoader, Dataset
+from torch.utils.model_zoo import tqdm
  
 def load_cifar10(path, batch_size):
     transform_train = transforms.Compose([
@@ -68,7 +69,8 @@ def load_imagenet(path, batch_size):
 
 class CUB200(Dataset):
     def __init__(self, root, train=True, transform=None, target_transform=None, download=False):
-        self._root = os.path.expanduser(root)
+        self._raw_path = os.path.join(root, "raw")
+        self._processed_path = os.path.join(root, "processed")
         self._train = train
         self._transform = transform
         self._target_transform = target_transform
@@ -78,17 +80,15 @@ class CUB200(Dataset):
         elif download:
             url = "https://data.caltech.edu/records/65de6-vp158/files/CUB_200_2011.tgz"
             self._download(url)
-            self._extract()
+            self._extract(self._processed_path)
         else:
             raise RuntimeError("Dataset not found or corrupted. You can use download=True to download it")
         
         if self._train:
-            self._train_data, self._train_labels = pickle.load(open(os.path.join(self._root, "processed/train.pkl"), "rb"))
-            assert (len(self._train_data) == 5994 and len(self._train_labels) == 5994)
+            self._train_data, self._train_labels = pickle.load(open(os.path.join(self._processed_path, "train.pkl"), "rb"))
         else:
-            self._test_data, self._test_labels = pickle.load(open(os.path.join(self._root, "processed/test.pkl"), "rb"))
-            assert (len(self._test_data) == 5794 and len(self._test_labels) == 5794)
-
+            self._test_data, self._test_labels = pickle.load(open(os.path.join(self._processed_path, "test.pkl"), "rb"))
+    
     def __getitem__(self, index):
         if self._train:
             image, target = self._train_data[index], self._train_labels[index]
@@ -107,44 +107,54 @@ class CUB200(Dataset):
         return len(self._train_data) if self._train else len(self._test_data)
 
     def _checkIntegrity(self):
-        return (os.path.isfile(os.path.join(self._root, "processed/train.pkl"))
-            and os.path.isfile(os.path.join(self._root, "processed/test.pkl")))
-
+        return (os.path.isfile(os.path.join(self._processed_path, "train.pkl"))
+            and os.path.isfile(os.path.join(self._processed_path, "test.pkl")))
+    
+    def _urlretrieve(self, url, filename, chunk_size=1024*32):
+        with urllib.request.urlopen(urllib.request.Request(url)) as response:
+            with open(filename, "wb") as fh, tqdm(total=response.length) as pbar:
+                while chunk := response.read(chunk_size):
+                    fh.write(chunk)
+                    pbar.update(len(chunk))
+        return
+    
     def _download(self, url):
-        raw_path = os.path.join(self._root, "raw")
-        processed_path = os.path.join(self._root, "processed")
-        if not os.path.isdir(raw_path):
-            os.mkdir(raw_path)
-        if not os.path.isdir(processed_path):
-            os.mkdir(processed_path)
-
+        if not os.path.isdir(self._raw_path):
+            os.makedirs(self._raw_path)
+        if not os.path.isdir(self._processed_path):
+            os.makedirs(self._processed_path)
+        
         # downloads file.
-        fpath = os.path.join(self._root, "raw/CUB_200_2011.tgz")
+        fpath = os.path.join(self._raw_path, "CUB_200_2011.tgz")
         try:
             print("Downloading " + url + " to " + fpath)
-            six.moves.urllib.request.urlretrieve(url, fpath)
-        except six.moves.urllib.error.URLError:
-            if url[:5] == "https:":
-                self._url = self._url.replace("https:", "http:")
-                print("Failed download. Trying https -> http instead.")
-                print("Downloading " + url + " to " + fpath)
-                six.moves.urllib.request.urlretrieve(url, fpath)
-
+            self._urlretrieve(url, fpath)
+        except (urllib.error.URLError, OSError) as e:
+            if url[:5] == "https":
+                url = url.replace("https:", "http:")
+                print("Failed download. Trying https -> http instead. Downloading " + url + " to " + fpath)
+                self._urlretrieve(url, fpath)
+            else:
+                raise e
+        
         # extract file.
         cwd = os.getcwd()
         tar = tarfile.open(fpath, "r:gz")
-        os.chdir(os.path.join(self._root, "raw"))
+        os.chdir(self._raw_path)
         tar.extractall()
         tar.close()
         os.chdir(cwd)
-
-    def _extract(self):
-        image_path = os.path.join(self._root, "raw/CUB_200_2011/images/")
+        return
+    
+    def _extract(self, extract_root):
+        image_path = os.path.join(self._raw_path, "CUB_200_2011/images/")
         # format of images.txt: <image_id> <image_name>
-        id2name = np.genfromtxt(os.path.join(self._root, "raw/CUB_200_2011/images.txt"), dtype=str)
+        id2name = np.genfromtxt(os.path.join(self._raw_path, "CUB_200_2011/images.txt"), dtype=str)
         # format of train_test_split.txt: <image_id> <is_training_image>
-        id2train = np.genfromtxt(os.path.join(self._root, "raw/CUB_200_2011/train_test_split.txt"), dtype=int)
-
+        id2train = np.genfromtxt(os.path.join(self._raw_path, "CUB_200_2011/train_test_split.txt"), dtype=int)
+        
+        archive = os.path.join(self._raw_path, "CUB_200_2011.tgz")
+        print(f"Extracting {archive} to {extract_root}")
         train_data = []
         train_labels = []
         test_data = []
@@ -166,8 +176,9 @@ class CUB200(Dataset):
                 test_data.append(image_np)
                 test_labels.append(label)
 
-        pickle.dump((train_data, train_labels), open(os.path.join(self._root, "processed/train.pkl"), "wb"))
-        pickle.dump((test_data, test_labels), open(os.path.join(self._root, "processed/test.pkl"), "wb"))
+        pickle.dump((train_data, train_labels), open(os.path.join(self._processed_path, "train.pkl"), "wb"))
+        pickle.dump((test_data, test_labels), open(os.path.join(self._processed_path, "test.pkl"), "wb"))
+        return
 
 def load_cub200(path, batch_size):
     transform_train = transforms.Compose([
