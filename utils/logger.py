@@ -41,10 +41,10 @@ class Logger(object):
         self._logger.info(message)
         return
     
-    def eval(self, result):
+    def eval(self, origin_result, pruned_result):
         """logging pruning effect evaluation"""
-        origin_top1, origin_top5, origin_flops, origin_params = tuple(result[0])
-        pruned_top1, pruned_top5, pruned_flops, pruned_params = tuple(result[1])
+        origin_top1, origin_top5, origin_flops, origin_params = tuple(origin_result)
+        pruned_top1, pruned_top5, pruned_flops, pruned_params = tuple(pruned_result)
         self._logger.info(f"{'top@1':<6}: {origin_top1:>6.2f}% -> {pruned_top1:>6.2f}% - drop: {origin_top1-pruned_top1:>5.2f}%")
         if origin_top5 is not None:
             self._logger.info(f"{'top@5':<6}: {origin_top5:>6.2f}% -> {pruned_top5:>6.2f}% - drop: {origin_top5-pruned_top5:>5.2f}%")

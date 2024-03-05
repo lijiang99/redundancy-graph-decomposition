@@ -5,9 +5,8 @@ import torch.nn as nn
 from large_scale.models import vgg16_bn, vgg19_bn
 from large_scale.pruning import prune_vggnet_weights
 from utils.data import load_cub200
-from utils.calculate import train_on_others, validate_on_others
+from utils.calculate import train_on_others, validate_on_others, evaluate
 from utils.logger import Logger
-from thop import profile
 from datetime import datetime
 import json
 
@@ -117,10 +116,9 @@ def main():
     
     # evaluate pruning effect
     logger.hint(f"evaluating pruned model '{pruned_model_str}'")
-    origin_best_acc, pruned_best_acc = validate_on_others(val_loader, origin_model, criterion, device)[1], best_acc
-    input_image_size = 448
-    input_image = torch.randn(1, 3, input_image_size, input_image_size).to(device)
-    logger.eval(result)
+    origin_result = evaluate(origin_model, 448, validate_on_others, val_loader, criterion, device)
+    pruned_result = evaluate(pruned_model, 448, validate_on_others, val_loader, criterion, device)
+    logger.eval(origin_result, pruned_result)
     logger.hint("done!")
 
 if __name__ == "__main__":

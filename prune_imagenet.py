@@ -8,7 +8,6 @@ from large_scale.pruning import prune_vggnet_weights, prune_resnet_weights
 from utils.data import load_imagenet
 from utils.calculate import train_on_imagenet, validate_on_imagenet
 from utils.logger import Logger
-from thop import profile
 import json
 
 parser = argparse.ArgumentParser(description="Fine-tune Pruned Model on ImageNet")
@@ -46,12 +45,12 @@ def main():
     origin_model = eval(f"torchvision.models.{args.arch}")(pretrained=True).to(device)
     origin_state_dict = origin_model.state_dict()
     dataset_dir = os.path.join(args.root, args.dataset, "dataset")
-    logger.hint("loading dataset from '{dataset_dir}'")
+    logger.hint(f"loading dataset from '{dataset_dir}'")
     train_loader, val_loader = load_imagenet(dataset_dir, batch_size=args.batch_size)
     
     # load pruning information
     prune_info_path = os.path.join(args.root, args.dataset, "prune-info", f"{pruned_model_str}.json")
-    logger.hint("loading pruning information from '{prune_info_path}'")
+    logger.hint(f"loading pruning information from '{prune_info_path}'")
     prune_info = None
     with open(prune_info_path, "r") as f:
         prune_info = json.load(f)
@@ -111,12 +110,10 @@ def main():
         scheduler.step()
     
     # evaluate pruning effect
-    logger.hint(f"evaluating pruned model '{pruned_model_str}'")
-    origin_top1_acc, origin_top5_acc = tuple(validate_on_imagenet(val_loader, origin_model, criterion, device)[1:])
-    pruned_top1_acc, pruned_top5_acc = best_top1_acc, best_top5_acc
-    input_image_size = 224
-    input_image = torch.randn(1, 3, input_image_size, input_image_size).to(device)
-    logger.eval(result)
+    logger.hint(f"evaluating pruned model '{pruned_model_str}'")    
+    origin_result = evaluate(origin_model, 224, validate_on_imagenet, val_loader, criterion, device)
+    pruned_result = evaluate(pruned_model, 224, validate_on_imagenet, val_loader, criterion, device)
+    logger.eval(origin_result, pruned_result)
     logger.hint("done!")
 
 if __name__ == "__main__":

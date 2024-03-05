@@ -1,5 +1,6 @@
 import torch
 from datetime import datetime
+from thop import profile
 
 class AverageMeter(object):
     """calculate and store the average and current value"""
@@ -121,3 +122,11 @@ def validate_on_imagenet(val_loader, model, criterion, device):
             top5.update(prec5[0], images.size(0))
     
     return losses.avg, top1.avg, top5.avg
+
+def evaluate(model, input_size, validate, val_loader, criterion, device):
+    """calculate the validate accuracy, flops, and parameters"""
+    val_acc = tuple(validate(val_loader, model, criterion, device)[1:])
+    top1_acc, top5_acc = (val_acc[0], None) if len(val_acc) == 1 else val_acc
+    input_image = torch.randn(1, 3, input_size, input_size).to(device)
+    flops, params = profile(model, inputs=(input_image,))
+    return top1_acc, top5_acc, flops, params
