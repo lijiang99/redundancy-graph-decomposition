@@ -49,7 +49,7 @@ def main():
     log_path = os.path.join(log_dir, f"{args.arch}-{args.threshold}.log")
     logger = Logger(log_path)
     
-    logger.mesg(f"author: jiang li - task: generate pruning information of {args.arch} (threshold={args.threshold})")
+    logger.task(f"generate pruning information of {args.arch} (threshold={args.threshold}) on {args.dataset}")
     logger.hint("printing arguments settings")
     logger.args(args)
     logger.hint("printing running environment")

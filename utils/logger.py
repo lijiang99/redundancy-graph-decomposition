@@ -15,6 +15,11 @@ class Logger(object):
         self._logger.addHandler(fh)
         self._logger.addHandler(sh)
     
+    def task(self, message):
+        """logging task information"""
+        self._logger.info(f"author: jiang li - task: {message}")
+        return
+    
     def args(self, args):
         """logging arguments settings"""
         args_info = str(args).replace(" ", "\n  ").replace("(", "(\n  ").replace(")", "\n)")

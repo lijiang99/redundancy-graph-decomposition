@@ -34,7 +34,7 @@ def main():
     log_path = os.path.join(log_dir, f"{pruned_model_str}.log")
     logger = Logger(log_path)
     
-    logger.mesg(f"author: jiang li - task: fine-tune pruned {args.arch} (threshold={args.threshold}) on {args.dataset}")
+    logger.task(f"fine-tune pruned {args.arch} (threshold={args.threshold}) on {args.dataset}")
     logger.hint("printing arguments settings")
     logger.args(args)
     logger.hint("printing running environment")

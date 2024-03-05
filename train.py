@@ -33,7 +33,7 @@ def main():
     log_path = os.path.join(log_dir, f"{args.arch}.log")
     logger = Logger(log_path)
     
-    logger.mesg(f"author: jiang li - task: train {args.arch} on {args.dataset} from scratch")
+    logger.task(f"train {args.arch} on {args.dataset} from scratch")
     logger.hint("printing arguments settings")
     logger.args(args)
     logger.hint("printing running environment")
