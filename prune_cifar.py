@@ -11,6 +11,7 @@ from utils.calculate import train_on_others, validate_on_others, evaluate
 from utils.logger import Logger
 from datetime import datetime
 import json
+import math
 
 parser = argparse.ArgumentParser(description="Fine-tune Pruned Model on CIFAR-10/100")
 
@@ -120,14 +121,14 @@ def main():
     
     # start fine-tuning
     logger.hint(f"fine-tuning pruned model '{pruned_model_str}'")
-    best_top1_acc = 0
+    best_top1_acc, width = 0, int(math.log10(args.epochs)+1)
     for epoch in range(args.epochs):
         beg_time = datetime.now()
         train_loss, train_top1_acc = train_on_others(train_loader, pruned_model, criterion, optimizer, device)
         end_time = datetime.now()
         lr = optimizer.param_groups[0]["lr"]
         consume_time = int((end_time-beg_time).total_seconds())
-        train_message = f"Epoch[{epoch+1:0>2}/{args.epochs}] - time: {consume_time:0>2}s - lr: {lr} - loss: {train_loss:.2f} - prec@1: {train_top1_acc:.2f}"
+        train_message = f"Epoch[{epoch+1:0>{width}}/{args.epochs}] - time: {consume_time:0>2}s - lr: {lr} - loss: {train_loss:.2f} - prec@1: {train_top1_acc:.2f}"
         logger.mesg(train_message)
         valid_loss, valid_top1_acc = validate_on_others(val_loader, pruned_model, criterion, device)
         if valid_top1_acc > best_top1_acc:
