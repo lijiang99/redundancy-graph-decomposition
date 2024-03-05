@@ -6,7 +6,7 @@ import torchvision
 from large_scale.models import vgg16_bn, vgg19_bn, resnet50
 from large_scale.pruning import prune_vggnet_weights, prune_resnet_weights
 from utils.data import load_imagenet
-from utils.calculate import train_on_imagenet, validate_on_imagenet
+from utils.calculate import train_on_imagenet, validate_on_imagenet, evaluate
 from utils.logger import Logger
 import json
 
