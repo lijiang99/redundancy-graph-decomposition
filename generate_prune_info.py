@@ -1,6 +1,5 @@
 import os
 import argparse
-import platform
 import torch
 import torch.nn as nn
 import torchvision
@@ -9,9 +8,9 @@ from small_scale.models import resnet20, resnet32, resnet44, resnet56, resnet110
 from large_scale.models import vgg16_bn, vgg19_bn, resnet50
 from utils.data import load_cifar10, load_cifar100, load_cub200, load_imagenet
 from utils.algorithm import FilterSelection
+from utils.logger import Logger
 from datetime import datetime
 import json
-import logging
 
 parser = argparse.ArgumentParser(description="Generate Pruning Information")
 
@@ -48,46 +47,32 @@ def main():
     if not os.path.isdir(log_dir):
         os.makedirs(log_dir)
     log_path = os.path.join(log_dir, f"{args.arch}-{args.threshold}.log")
-    if os.path.isfile(log_path):
-        os.remove(log_path)
+    logger = Logger(log_path)
     
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    fh = logging.FileHandler(log_path, mode="a")
-    sh = logging.StreamHandler()
-    logger.addHandler(fh)
-    logger.addHandler(sh)
-    
-    logger.info(f"author: jiang li - task: generate pruning information of {args.arch} (threshold={args.threshold})")
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => printing arguments settings")
-    args_info = str(args).replace(" ", "\n  ").replace("(", "(\n  ").replace(")", "\n)")
-    logger.info(f"{args_info}")
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => printing running environment")
-    logger.info(f"{'python':<6} version: {platform.python_version()}")
-    logger.info(f"{'torch':<6} version: {torch.__version__}")
-    logger.info(f"{'cuda':<6} version: {torch.version.cuda}")
-    logger.info(f"{'cudnn':<6} version: {torch.backends.cudnn.version()}")
+    logger.mesg(f"author: jiang li - task: generate pruning information of {args.arch} (threshold={args.threshold})")
+    logger.hint("printing arguments settings")
+    logger.args(args)
+    logger.hint("printing running environment")
     device = torch.device("cuda")
-    device_prop = torch.cuda.get_device_properties(device)
-    logger.info(f"{'device':<6} version: {device_prop.name} ({device_prop.total_memory/(1024**3):.2f} GB)")
+    logger.envs(device)
     
     # create model
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => creating model '{args.arch}'")
+    logger.hint(f"creating model '{args.arch}'")
     if args.dataset == "imagenet":
         model = eval(f"torchvision.models.{args.arch}")(pretrained=True).to(device)
     else:
         model = eval(args.arch)(num_classes=(10 if args.dataset == "cifar10" else (100 if args.dataset == "cifar100" else 200))).to(device)
-    logger.info(str(model))
+    logger.mesg(str(model))
     
     # load pre-trained weights and dataset
     if args.dataset != "imagenet":
         pretrain_weights_path = os.path.join(args.root, args.dataset, "pre-train", f"{args.arch}-weights.pth")
-        logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading weights from '{pretrain_weights_path}'")
+        logger.hint(f"loading weights from '{pretrain_weights_path}'")
         model.load_state_dict(torch.load(pretrain_weights_path, map_location=device))
     
     state_dict = model.state_dict()
     dataset_dir = os.path.join(args.root, args.dataset, "dataset")
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{dataset_dir}'")
+    logger.hint(f"loading dataset from '{dataset_dir}'")
     train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=args.batch_size)
     
     # inference to get output feature maps
@@ -98,7 +83,7 @@ def main():
             conv_weights.append(state_dict[f"{name}.weight"])
             module.register_forward_hook(feature_hook)
     
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => extracting feature maps")
+    logger.hint("extracting feature maps")
     inference(train_loader, model, device, mini_batch=args.mini_batch)
     
     # exclude the last convolutional layer of each residual structure for resnet
@@ -133,7 +118,7 @@ def main():
     final_feature_blobs = sub_feature_blobs if len(sub_feature_blobs) != 0 else feature_blobs
     
     # get the pruning information of the convolutional layers
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => selecting redundant filters")
+    logger.hint("selecting redundant filters")
     prune_info = dict()
     for conv_layer, feature_blob, weight in zip(final_conv_layers, final_feature_blobs, final_conv_weights):
         beg_time = datetime.now()
@@ -143,19 +128,19 @@ def main():
         mask_num = weight.shape[0] - len(saved_filters)
         prune_info[conv_layer] = {"saved_idxs": saved_filters, "mask_num": mask_num}
         consume_time = str(end_time-beg_time).split('.')[0]
-        logger.info(f"consume {consume_time}, remove {mask_num:0>4}/{weight.shape[0]:0>4} filters from '{conv_layer}'")
+        logger.mesg(f"consume {consume_time}, remove {mask_num:0>4}/{weight.shape[0]:0>4} filters from '{conv_layer}'")
     
     # save information of pruning to json file
     save_dir = os.path.join(args.root, args.dataset, "prune-info")
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
     save_path = os.path.join(save_dir, f"{args.arch}-{args.threshold}.json")
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => saving pruning information to '{save_path}'")
+    logger.hint(f"saving pruning information to '{save_path}'")
     
     with open(save_path, "w") as f:
         json.dump(prune_info, f)
     
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => done!")
+    logger.hint("done!")
 
 if __name__ == "__main__":
     main()

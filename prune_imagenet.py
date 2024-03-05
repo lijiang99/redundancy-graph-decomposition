@@ -1,6 +1,5 @@
 import os
 import argparse
-import platform
 import torch
 import torch.nn as nn
 import torchvision
@@ -8,10 +7,9 @@ from large_scale.models import vgg16_bn, vgg19_bn, resnet50
 from large_scale.pruning import prune_vggnet_weights, prune_resnet_weights
 from utils.data import load_imagenet
 from utils.calculate import train_on_imagenet, validate_on_imagenet
+from utils.logger import Logger
 from thop import profile
-from datetime import datetime
 import json
-import logging
 
 parser = argparse.ArgumentParser(description="Fine-tune Pruned Model on ImageNet")
 
@@ -35,39 +33,25 @@ def main():
     if not os.path.isdir(log_dir):
         os.makedirs(log_dir)
     log_path = os.path.join(log_dir, f"{pruned_model_str}.log")
-    if os.path.isfile(log_path):
-        os.remove(log_path)
+    logger = Logger(log_path)
     
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    fh = logging.FileHandler(log_path, mode="a")
-    sh = logging.StreamHandler()
-    logger.addHandler(fh)
-    logger.addHandler(sh)
-    
-    logger.info(f"author: jiang li - task: fine-tune pruned {args.arch} (threshold={args.threshold}) on imagenet")
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => printing arguments settings")
-    args_info = str(args).replace(" ", "\n  ").replace("(", "(\n  ").replace(")", "\n)")
-    logger.info(f"{args_info}")
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => printing running environment")
-    logger.info(f"{'python':<6} version: {platform.python_version()}")
-    logger.info(f"{'torch':<6} version: {torch.__version__}")
-    logger.info(f"{'cuda':<6} version: {torch.version.cuda}")
-    logger.info(f"{'cudnn':<6} version: {torch.backends.cudnn.version()}")
+    logger.mesg(f"author: jiang li - task: fine-tune pruned {args.arch} (threshold={args.threshold}) on imagenet")
+    logger.hint("printing arguments settings")
+    logger.args(args)
+    logger.hint("printing running environment")
     device = torch.device("cuda")
-    device_prop = torch.cuda.get_device_properties(device)
-    logger.info(f"{'device':<6} version: {device_prop.name} ({device_prop.total_memory/(1024**3):.2f} GB)")
+    logger.envs(device)
     
     # load pre-trained weights and model
     origin_model = eval(f"torchvision.models.{args.arch}")(pretrained=True).to(device)
     origin_state_dict = origin_model.state_dict()
     dataset_dir = os.path.join(args.root, args.dataset, "dataset")
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading dataset from '{dataset_dir}'")
+    logger.hint("loading dataset from '{dataset_dir}'")
     train_loader, val_loader = load_imagenet(dataset_dir, batch_size=args.batch_size)
     
     # load pruning information
     prune_info_path = os.path.join(args.root, args.dataset, "prune-info", f"{pruned_model_str}.json")
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading pruning information from '{prune_info_path}'")
+    logger.hint("loading pruning information from '{prune_info_path}'")
     prune_info = None
     with open(prune_info_path, "r") as f:
         prune_info = json.load(f)
@@ -83,13 +67,13 @@ def main():
             linear_layers.append(name)
     
     # create pruned model
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => creating pruned model '{pruned_model_str}'")
+    logger.hint(f"creating pruned model '{pruned_model_str}'")
     pruned_model = eval(args.arch)(num_classes=1000, mask_nums=[value["mask_num"] for value in prune_info.values()]).to(device)
     pruned_state_dict = pruned_model.state_dict()
-    logger.info(str(pruned_model))
+    logger.mesg(str(pruned_model))
     
     # load pruned weights to pruned model
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => loading pruned weights to pruned model '{pruned_model_str}'")
+    logger.hint(f"loading pruned weights to pruned model '{pruned_model_str}'")
     if "vgg" in args.arch:
         pruned_state_dict = prune_vggnet_weights(prune_info=prune_info,
                                                  pruned_state_dict=pruned_state_dict, origin_state_dict=origin_state_dict,
@@ -114,7 +98,7 @@ def main():
     save_path = os.path.join(fine_tune_dir, f"{pruned_model_str}-weights.pth")
     
     # start fine-tuning
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => fine-tuning pruned model '{pruned_model_str}'")
+    logger.hint(f"fine-tuning pruned model '{pruned_model_str}'")
     best_top1_acc, best_top5_acc = 0, 0
     for epoch in range(args.epochs):
         train_loss, train_top1_acc, train_top5_acc = train_on_imagenet(train_loader, pruned_model, criterion, optimizer, device, epoch, args.epochs, logger)
@@ -123,22 +107,17 @@ def main():
             best_top1_acc = valid_top1_acc
             best_top5_acc = valid_top5_acc
             torch.save(pruned_model.state_dict(), save_path)
-        logger.info(f"Test - acc@1: {valid_top1_acc:.2f} - acc@5: {valid_top5_acc:.2f} - best accuracy (top@1, top@5): ({best_top1_acc:>5.2f}, {best_top5_acc:>5.2f})")
+        logger.mesg(f"Test - top@1: {valid_top1_acc:.2f} - top@5: {valid_top5_acc:.2f} - best accuracy (top@1, top@5): ({best_top1_acc:>5.2f}, {best_top5_acc:>5.2f})")
         scheduler.step()
     
     # evaluate pruning effect
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => evaluating pruned model '{pruned_model_str}'")
+    logger.hint(f"evaluating pruned model '{pruned_model_str}'")
     origin_top1_acc, origin_top5_acc = tuple(validate_on_imagenet(val_loader, origin_model, criterion, device)[1:])
     pruned_top1_acc, pruned_top5_acc = best_top1_acc, best_top5_acc
     input_image_size = 224
     input_image = torch.randn(1, 3, input_image_size, input_image_size).to(device)
-    origin_flops, origin_params = profile(origin_model, inputs=(input_image,))
-    pruned_flops, pruned_params = profile(pruned_model, inputs=(input_image,))
-    logger.info(f"{'top@1':<6}: {origin_top1_acc:>6.2f}% -> {pruned_top1_acc:>6.2f}% - drop: {origin_top1_acc-pruned_top1_acc:>5.2f}%")
-    logger.info(f"{'top@5':<6}: {origin_top5_acc:>6.2f}% -> {pruned_top5_acc:>6.2f}% - drop: {origin_top5_acc-pruned_top5_acc:>5.2f}%")
-    logger.info(f"{'flops':<6}: {origin_flops/1e9:>6.2f}G -> {pruned_flops/1e9:>6.2f}G - drop: {(origin_flops-pruned_flops)/origin_flops*100:>5.2f}%")
-    logger.info(f"{'params':<6}: {origin_params/1e6:>6.2f}M -> {pruned_params/1e6:>6.2f}M - drop: {(origin_params-pruned_params)/origin_params*100:>5.2f}%")
-    logger.info(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} | => done!")
+    logger.eval(result)
+    logger.hint("done!")
 
 if __name__ == "__main__":
     main()
