@@ -2,7 +2,7 @@
 
 dataset=$1
 if [ "$dataset" == "cifar10" ] || [ "$dataset" == "cifar100" ]; then
-	archs=("vgg16" "resnet20" "resnet32" "resnet44" "resnet56" "resnet110" "densenet40" "googlenet" "mobilenet_v1" "mobilenet_v2")
+	archs=("vgg16_bn" "resnet20" "resnet32" "resnet44" "resnet56" "resnet110" "densenet40" "googlenet" "mobilenet_v1" "mobilenet_v2")
 elif [ "$dataset" == "cub200" ]; then
 	archs=("vgg16_bn" "vgg19_bn")
 elif [ "$dataset" == "imagenet" ]; then
@@ -16,8 +16,12 @@ fi
 for arch in ${archs[@]}
 do
 	case $arch in
-		"vgg16")
-			thresholds=(0.7 0.75 0.8)
+		"vgg"*)
+			if [ "$dataset" == "cub200" ] || [ "$dataset" == "imagenet" ]; then
+				thresholds=(0.8 0.85)
+			else
+				thresholds=(0.7 0.75 0.8)
+			fi
 			;;
 		"resnet"*)
 			thresholds=(0.65 0.7 0.75)
@@ -30,9 +34,6 @@ do
 			;;
 		"mobilenet"*)
 			thresholds=(0.75 0.8)
-			;;
-		"vgg"*"_bn")
-			thresholds=(0.8 0.85)
 			;;
 		*)
 	esac

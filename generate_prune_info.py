@@ -3,9 +3,8 @@ import argparse
 import torch
 import torch.nn as nn
 import torchvision
-from small_scale.models import vgg16, densenet40, googlenet, mobilenet_v1, mobilenet_v2
-from small_scale.models import resnet20, resnet32, resnet44, resnet56, resnet110
-from large_scale.models import vgg16_bn, vgg19_bn, resnet50
+import small_scale
+import large_scale
 from utils.data import load_cifar10, load_cifar100, load_cub200, load_imagenet
 from utils.algorithm import FilterSelection
 from utils.logger import Logger
@@ -15,7 +14,7 @@ import json
 parser = argparse.ArgumentParser(description="Generate Pruning Information")
 
 parser.add_argument("--root", type=str, default="./", help="project root directory")
-parser.add_argument("--arch", type=str, default="vgg16", help="model architecture")
+parser.add_argument("--arch", type=str, default="vgg16_bn", help="model architecture")
 parser.add_argument("--dataset", type=str, default="cifar10", help="dataset")
 parser.add_argument("--batch-size", type=int, default=256, help="batch size")
 parser.add_argument("--mini-batch", type=int, default=100, help="number of inputs to calculate average similarity")
@@ -58,10 +57,12 @@ def main():
     
     # create model
     logger.hint(f"creating model '{args.arch}'")
+    if args.dataset == "cub200":
+        model = eval(f"large_scale.models.{args.arch}")(num_classes=200).to(device)
     if args.dataset == "imagenet":
         model = eval(f"torchvision.models.{args.arch}")(pretrained=True).to(device)
     else:
-        model = eval(args.arch)(num_classes=(10 if args.dataset == "cifar10" else (100 if args.dataset == "cifar100" else 200))).to(device)
+        model = eval(f"small_scale.models.{args.arch}")(num_classes=(10 if args.dataset == "cifar10" else 100)).to(device)
     logger.mesg(str(model))
     
     # load pre-trained weights and dataset

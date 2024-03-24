@@ -397,7 +397,7 @@ class MobileNet_V2(nn.Module):
         out = self.linear(out)
         return out
 
-def vgg16(num_classes=10, mask_nums=None):
+def vgg16_bn(num_classes=10, mask_nums=None):
     cfg = [64, 64, "M", 128, 128, "M", 256, 256, 256, "M", 512, 512, 512, "M", 512, 512, 512]
     return VGGNet(cfg=cfg, num_classes=num_classes, mask_nums=mask_nums)
 

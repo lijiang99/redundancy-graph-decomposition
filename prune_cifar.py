@@ -2,7 +2,7 @@ import os
 import argparse
 import torch
 import torch.nn as nn
-from small_scale.models import vgg16, densenet40, googlenet, mobilenet_v1, mobilenet_v2
+from small_scale.models import vgg16_bn, densenet40, googlenet, mobilenet_v1, mobilenet_v2
 from small_scale.models import resnet20, resnet32, resnet44, resnet56, resnet110
 from small_scale.pruning import prune_vggnet_weights, prune_resnet_weights, prune_densenet_weights 
 from small_scale.pruning import prune_googlenet_weights, prune_mobilenet_v1_weights, prune_mobilenet_v2_weights
@@ -16,7 +16,7 @@ import math
 parser = argparse.ArgumentParser(description="Fine-tune Pruned Model on CIFAR-10/100")
 
 parser.add_argument("--root", type=str, default="./", help="project root directory")
-parser.add_argument("--arch", type=str, default="vgg16", help="model architecture")
+parser.add_argument("--arch", type=str, default="vgg16_bn", help="model architecture")
 parser.add_argument("--dataset", type=str, default="cifar10", help="dataset")
 parser.add_argument("--threshold", type=float, default=0.7, help="similarity threshold")
 parser.add_argument("--epochs", type=int, default=70, help="number of fine-tuning epochs")
@@ -53,7 +53,7 @@ def main():
     origin_model.load_state_dict(origin_state_dict)
     dataset_dir = os.path.join(args.root, args.dataset, "dataset")
     logger.hint(f"loading dataset from '{dataset_dir}'")
-    train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=args.batch_size)
+    train_loader, val_loader = eval(f"load_{args.dataset}")(dataset_dir, batch_size=args.batch_size)
     
     # load pruning information
     prune_info_path = os.path.join(args.root, args.dataset, "prune-info", f"{pruned_model_str}.json")
