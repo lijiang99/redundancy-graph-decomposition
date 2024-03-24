@@ -59,7 +59,7 @@ def main():
     logger.hint(f"creating model '{args.arch}'")
     if args.dataset == "cub200":
         model = eval(f"large_scale.models.{args.arch}")(num_classes=200).to(device)
-    if args.dataset == "imagenet":
+    elif args.dataset == "imagenet":
         model = eval(f"torchvision.models.{args.arch}")(pretrained=True).to(device)
     else:
         model = eval(f"small_scale.models.{args.arch}")(num_classes=(10 if args.dataset == "cifar10" else 100)).to(device)
