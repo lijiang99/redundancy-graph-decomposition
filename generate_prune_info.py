@@ -73,7 +73,7 @@ def main():
     state_dict = model.state_dict()
     dataset_dir = os.path.join(args.root, args.dataset, "dataset")
     logger.hint(f"loading dataset from '{dataset_dir}'")
-    train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=args.batch_size)
+    train_loader, val_loader = eval(f"load_{args.dataset}")(dataset_dir, batch_size=args.batch_size)
     
     # inference to get output feature maps
     conv_layers, conv_weights = [], []

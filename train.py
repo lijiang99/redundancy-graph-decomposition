@@ -45,7 +45,7 @@ def main():
     if not os.path.isdir(dataset_dir):
         os.makedirs(dataset_dir)
     logger.hint(f"loading dataset from '{dataset_dir}'")
-    train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=args.batch_size)
+    train_loader, val_loader = eval(f"load_{args.dataset}")(dataset_dir, batch_size=args.batch_size)
     logger.hint(f"creating model '{args.arch}'")
     model = None
     if args.dataset == "cub200":

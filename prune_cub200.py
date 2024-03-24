@@ -51,7 +51,7 @@ def main():
     origin_model.load_state_dict(origin_state_dict)
     dataset_dir = os.path.join(args.root, args.dataset, "dataset")
     logger.hint(f"loading dataset from '{dataset_dir}'")
-    train_loader, val_loader = eval("load_"+args.dataset)(dataset_dir, batch_size=args.batch_size)
+    train_loader, val_loader = load_cub200(dataset_dir, batch_size=args.batch_size)
     
     # load pruning information
     prune_info_path = os.path.join(args.root, args.dataset, "prune-info", f"{pruned_model_str}.json")
