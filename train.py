@@ -3,7 +3,7 @@ import argparse
 import torch
 import torch.nn as nn
 import torchvision
-import small_scale
+import small_scale.models
 from utils.data import load_cifar10, load_cifar100, load_cub200
 from utils.calculate import train_on_others, validate_on_others
 from utils.logger import Logger

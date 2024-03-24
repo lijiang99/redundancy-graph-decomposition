@@ -3,8 +3,8 @@ import argparse
 import torch
 import torch.nn as nn
 import torchvision
-import small_scale
-import large_scale
+import small_scale.models
+import large_scale.models
 from utils.data import load_cifar10, load_cifar100, load_cub200, load_imagenet
 from utils.algorithm import FilterSelection
 from utils.logger import Logger
