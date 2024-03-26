@@ -24,7 +24,11 @@ do
 			fi
 			;;
 		"resnet"*)
-			thresholds=(0.65 0.7 0.75)
+			if [ "$dataset" == "imagenet" ]; then
+				thresholds=(0.65 0.7)
+			else
+				thresholds=(0.65 0.7 0.75)
+			fi
 			;;
 		"densenet40")
 			thresholds=(0.65 0.7 0.75)
