@@ -1,17 +1,25 @@
 # !/bin/bash
 
 dataset=$1
-if [ "$dataset" == "cifar10" ] || [ "$dataset" == "cifar100" ]; then
-	archs=("vgg16_bn" "resnet20" "resnet32" "resnet44" "resnet56" "resnet110" "densenet40" "googlenet" "mobilenet_v1" "mobilenet_v2")
-elif [ "$dataset" == "cub200" ]; then
-	archs=("vgg16_bn" "vgg19_bn")
-elif [ "$dataset" == "imagenet" ]; then
-	archs=("resnet50" "vgg16_bn" "vgg19_bn")
-else
-	echo "error: unexpected dataset"
-	echo "optional datasets: ciafr10, cifar100, cub200 and imagenet"
-	exit
-fi
+
+case $dataset in
+	"cifar10" | "cifar100")
+		archs=("vgg16_bn" "resnet20" "resnet32" "resnet44" "resnet56" "resnet110" "densenet40" "googlenet" "mobilenet_v1" "mobilenet_v2")
+		exec_file=prune_cifar.py
+		;;
+	"cub200")
+		archs=("vgg16_bn" "vgg19_bn")
+		exec_file=prune_cub200.py
+		;;
+	"imagenet")
+		archs=("resnet50" "vgg16_bn" "vgg19_bn")
+		exec_file=prune_imagenet.py
+		;;
+	*)
+		echo "error: unexpected dataset"
+		echo "optional datasets: ciafr10, cifar100, cub200 and imagenet"
+		exit
+esac
 
 for arch in ${archs[@]}
 do
@@ -59,18 +67,6 @@ do
 		if [ ! -f "$prune_info_path" ]; then
 			python generate_prune_info.py --arch $arch --dataset $dataset --threshold $threshold
 		fi
-		case $dataset in
-			"cifar"*)
-				exec_file=prune_cifar.py
-				;;
-			"cub200")
-				exec_file=prune_cub200.py
-				;;
-			"imagenet")
-				exec_file=prune_imagenet.py
-				;;
-			*)
-		esac
 		python $exec_file --arch $arch --dataset $dataset --threshold $threshold
 	done
 done
