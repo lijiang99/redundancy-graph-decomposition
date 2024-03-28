@@ -133,12 +133,14 @@ def main():
         valid_loss, valid_top1_acc = validate_on_others(val_loader, pruned_model, criterion, device)
         if valid_top1_acc > best_top1_acc:
             best_top1_acc = valid_top1_acc
-            torch.save(pruned_model.state_dict(), save_path)
+            pruned_state_dict = pruned_model.state_dict()
+            torch.save(pruned_state_dict, save_path)
         logger.mesg(f"Test - top@1: {valid_top1_acc:.2f} - best accuracy (top@1): {best_top1_acc:.2f}")
         scheduler.step()
     
     # evaluate pruning effect
     logger.hint(f"evaluating pruned model '{pruned_model_str}'")
+    pruned_model.load_state_dict(pruned_state_dict)
     origin_result = evaluate(origin_model, 32, validate_on_others, val_loader, criterion, device)
     pruned_result = evaluate(pruned_model, 32, validate_on_others, val_loader, criterion, device)
     logger.eval(origin_result, pruned_result)
