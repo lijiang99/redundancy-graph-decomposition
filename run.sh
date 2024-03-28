@@ -25,8 +25,10 @@ for arch in ${archs[@]}
 do
 	case $arch in
 		"vgg"*)
-			if [ "$dataset" == "cub200" ] || [ "$dataset" == "imagenet" ]; then
+			if [ "$dataset" == "cub200" ]; then
 				thresholds=(0.8 0.85)
+			elif [ "$dataset" == "imagenet" ]; then
+				thresholds=(0.7 0.75)
 			else
 				thresholds=(0.7 0.75 0.8)
 			fi
