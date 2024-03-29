@@ -105,13 +105,13 @@ def main():
         if valid_top1_acc > best_top1_acc:
             best_top1_acc = valid_top1_acc
             best_top5_acc = valid_top5_acc
-            pruned_state_dict = pruned_model.state_dict()
-            torch.save(pruned_state_dict, save_path)
+            torch.save(pruned_model.state_dict(), save_path)
         logger.mesg(f"Test - top@1: {valid_top1_acc:.2f} - top@5: {valid_top5_acc:.2f} - best accuracy (top@1, top@5): ({best_top1_acc:>5.2f}, {best_top5_acc:>5.2f})")
         scheduler.step()
     
     # evaluate pruning effect
     logger.hint(f"evaluating pruned model '{pruned_model_str}'")
+    pruned_state_dict = torch.load(save_path, map_location=device)
     pruned_model.load_state_dict(pruned_state_dict)
     origin_result = evaluate(origin_model, 224, validate_on_imagenet, val_loader, criterion, device)
     pruned_result = evaluate(pruned_model, 224, validate_on_imagenet, val_loader, criterion, device)
