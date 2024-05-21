@@ -1,3 +1,3 @@
-# Filter Pruning via Decomposition of Redundancy Graphs
+# Efficient Filter Pruning: Reducing Model Complexity through Redundancy Graph Decomposition
 
 ## 近期更新，敬请期待
