@@ -1,4 +1,4 @@
-# Efficient Filter Pruning: Reducing Model Complexity through Redundancy Graph Decomposition
+# Efficient filter pruning: Reducing model complexity through redundancy graph decomposition ([Link](https://doi.org/10.1016/j.neucom.2024.128108))
 
 ## Requirements
 
@@ -212,3 +212,18 @@ We provide pruned models, along with comprehensive fine-tuning logs, to verify a
 <tr align="center"><td>VGGNet-16-BN</td><td>0.85</td><td>2.29</td><td>51.95</td><td>2.25</td></tr>
 <tr align="center"><td>VGGNet-16-BN</td><td>0.85</td><td>1.85</td><td>52.66</td><td>2.91</td></tr>
 </table>
+
+## Citation
+
+If you find our pruning method useful in your research, please consider citing:
+
+```
+@article{li2024efficient,
+  title={Efficient filter pruning: Reducing model complexity through redundancy graph decomposition},
+  author={Li, Jiang and Shao, Haijian and Deng, Xing and Jiang, Yingtao},
+  journal={Neurocomputing},
+  pages={128108},
+  year={2024},
+  publisher={Elsevier}
+}
+```
